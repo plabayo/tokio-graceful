@@ -1,0 +1,15 @@
+[package]
+categories = ["asynchronous", "network-programming"]
+edition = "2021"
+name = "tokio-graceful"
+version = "0.2.0"
+description = "util for graceful shutdown of tokio applications"
+homepage = "https://github.com/plabayo/tokio-graceful"
+readme = "README.md"
+keywords = ["io", "async", "non-blocking", "futures"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/plabayo/tokio-graceful"
+
+[dependencies]
+tokio = { version = "1", features = ["signal"] }
+tokio-util = "0.7"

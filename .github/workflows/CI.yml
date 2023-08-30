@@ -1,0 +1,150 @@
+name: CI
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_TOOLCHAIN: nightly-2023-07-08
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{env.RUST_TOOLCHAIN}}
+          override: true
+          profile: minimal
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - name: check
+        run: |
+          cargo check --all --all-targets --all-features
+      - name: clippy
+        run: |
+          cargo clippy --all --all-targets --all-features
+      - name: rustfmt
+        run: |
+          cargo fmt --all -- --check
+
+  check-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{env.RUST_TOOLCHAIN}}
+          override: true
+          profile: minimal
+      - uses: Swatinem/rust-cache@v1
+      - name: cargo doc
+        env:
+          RUSTDOCFLAGS: "-D broken-intra-doc-links"
+        run: cargo doc --all-features --no-deps
+
+  test:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{env.RUST_TOOLCHAIN}}
+          override: true
+          profile: minimal
+      - uses: Swatinem/rust-cache@v1
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --all-features
+
+  test-docs:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{env.RUST_TOOLCHAIN}}
+          override: true
+          profile: minimal
+      - uses: Swatinem/rust-cache@v1
+      - name: Run doc tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --all-features --doc
+
+  test-examples:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{env.RUST_TOOLCHAIN}}
+          override: true
+          profile: minimal
+      - uses: Swatinem/rust-cache@v1
+      - name: Run doc tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --all-features --examples
+
+  cargo-hack:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{env.RUST_TOOLCHAIN}}
+          profile: minimal
+      - name: install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+      - name: cargo hack check
+        run: cargo hack check --each-feature --no-dev-deps --workspace
+
+  dependencies-are-sorted:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{env.RUST_TOOLCHAIN}}
+          override: true
+          profile: minimal
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-sort
+        run: |
+          cargo install cargo-sort
+      - name: Check dependency tables
+        working-directory: .
+        run: |
+          cargo sort --workspace --grouped --check
+
+  cargo-deny:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: EmbarkStudios/cargo-deny-action@v1
+
+  semver-checks:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Check semver
+        uses: obi1kenobi/cargo-semver-checks-action@v2
+        with:
+          rust-toolchain: ${{env.RUST_TOOLCHAIN}}
