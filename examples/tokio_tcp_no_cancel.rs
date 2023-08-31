@@ -41,15 +41,9 @@ async fn main() {
                     Ok((socket, _)) => {
                         let token = token.token();
                         tokio::spawn(async move {
+                            let _ = token;
                             let (mut reader, mut writer) = tokio::io::split(socket);
-                            tokio::select! {
-                                _ = token.cancelled_with_delay(Duration::from_secs(10)) => {
-                                    tracing::warn!("connection cancelled");
-                                }
-                                _ = tokio::io::copy(&mut reader, &mut writer) => {
-                                    tracing::info!("connection closed");
-                                }
-                            }
+                            tokio::io::copy(&mut reader, &mut writer).await.unwrap();
                         });
                     }
                     Err(e) => {
