@@ -1,9 +1,14 @@
 //! An example showcasing how to use [`tokio_graceful`] to gracefully shutdown a
 //! [`tokio`] application which makes use of [`hyper`] (0.14).
 //!
+//! Libraries such as [`axum`] are built on top of Hyper and thus
+//! [`tokio_graceful`] can be used to gracefully shutdown applications built on
+//! top of them.
+//!
 //! [`tokio_graceful`]: https://docs.rs/tokio-graceful
 //! [`tokio`]: https://docs.rs/tokio
 //! [`hyper`]: https://docs.rs/hyper/0.14/hyper
+//! [`axum`]: https://docs.rs/axum
 
 use std::convert::Infallible;
 use std::time::Duration;
