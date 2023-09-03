@@ -137,6 +137,11 @@ impl WeakShutdownGuard {
     }
 
     #[inline]
+    pub async fn into_cancelled(self) {
+        self.cancelled().await;
+    }
+
+    #[inline]
     pub fn upgrade(self) -> ShutdownGuard {
         self.into()
     }
