@@ -17,39 +17,39 @@ async fn main() {
         .with(EnvFilter::from_default_env())
         .init();
 
+    let shutdown = tokio_graceful::Shutdown::default();
+
+    shutdown.spawn_task_fn(serve_tcp);
+
+    if shutdown
+        .shutdown_with_limit(Duration::from_secs(10))
+        .await
+        .is_err()
+    {
+        tracing::warn!("shutdown: forcefully due to timeout");
+    }
+
+    tracing::info!("Bye!");
+}
+
+async fn serve_tcp(shutdown_guard: tokio_graceful::ShutdownGuard) {
     let listener = TcpListener::bind("127.0.0.1:8080").await.unwrap();
-
-    let token = tokio_graceful::token();
-    tokio::pin!(token);
-
     tracing::info!("listening on {}", listener.local_addr().unwrap());
+
     loop {
+        let shutdown_guard = shutdown_guard.clone();
         tokio::select! {
-            result = token.shutdown_with_delay(Duration::from_secs(30)) => {
-                match result {
-                    Ok(_) => {
-                        tracing::info!("shutting down gracefully");
-                    }
-                    Err(e) => {
-                        tracing::warn!("shutdown error: {:?}", e);
-                    }
-                }
+            _ = shutdown_guard.cancelled() => {
+                tracing::info!("signal received: initiate graceful shutdown");
                 break;
             }
             result = listener.accept() => {
                 match result {
                     Ok((socket, _)) => {
-                        let token = token.token();
                         tokio::spawn(async move {
                             let (mut reader, mut writer) = tokio::io::split(socket);
-                            tokio::select! {
-                                _ = token.cancelled_with_delay(Duration::from_secs(10)) => {
-                                    tracing::warn!("connection cancelled");
-                                }
-                                _ = tokio::io::copy(&mut reader, &mut writer) => {
-                                    tracing::info!("connection closed");
-                                }
-                            }
+                            let _ = tokio::io::copy(&mut reader, &mut writer).await;
+                            drop(shutdown_guard);
                         });
                     }
                     Err(e) => {
@@ -59,6 +59,4 @@ async fn main() {
             }
         }
     }
-
-    tracing::info!("Bye!");
 }

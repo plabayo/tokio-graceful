@@ -11,9 +11,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/plabayo/tokio-graceful"
 
 [dependencies]
-futures-util = "0.3.28"
 tokio = { version = "1", features = ["rt", "signal", "sync", "macros", "time"] }
-tokio-util = "0.7"
 tracing = "0.1"
 
 [dev-dependencies]
