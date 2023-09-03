@@ -25,11 +25,34 @@
 
 Utilities for graceful shutdown of [tokio](https://tokio.rs/) applications.
 
+## Examples
+
+How to use this crate might be easiest to explain
+by showing an example, which you can find at
+[examples/tokio_tcp.rs](./examples/tokio_tcp.rs).
+
+### Example: Hyper
+
+In case you wish to use this library as a [Hyper](https://hyper.rs/) user
+you can do so using pretty much the same approach as
+the Tokio tcp example. Except that it's a lot easier
+out of the box: [examples/hyper.rs](./examples/hyper.rs)
+
 ## Contributing
 
 :balloon: Thanks for your help improving the project! We are so happy to have
 you! We have a [contributing guide][contributing] to help you get involved in the
 `tokio-graceful` project.
+
+### Shoutouts
+
+Special shoutout for this library goes to [the Tokio ecosystem](https://tokio.rs/).
+Those who developed it as well as the folks hanging on the [Tokio discord server](https://discord.gg/tokio).
+The discussions and Q&A sessions with them were very crucial to the development of this project.
+
+In this context also an extra shoutout to [@tobz](https://github.com/tobz) who
+gave me the idea of approaching it from an Atomic perspective instead
+of immediately going for channel solutions.
 
 ## License
 
