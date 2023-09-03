@@ -16,7 +16,7 @@
 [license-apache-badge]: https://img.shields.io/badge/license-APACHE-blue.svg
 [license-apache-url]: https://github.com/plabayo/tokio-graceful/blob/main/LICENSE-APACHE
 [actions-badge]: https://github.com/plabayo/tokio-graceful/workflows/CI/badge.svg
-[actions-url]: https://github.com/plabayo/tokio-graceful/actions?query=workflow%3ACI+branch%main
+[actions-url]: https://github.com/plabayo/tokio-graceful/actions/workflows/CI.yml?query=branch%3Amain
 
 [bmac-badge]: https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black
 [bmac-url]: https://www.buymeacoffee.com/plabayo
@@ -29,14 +29,14 @@ Utilities for graceful shutdown of [tokio](https://tokio.rs/) applications.
 
 How to use this crate might be easiest to explain
 by showing an example, which you can find at
-[examples/tokio_tcp.rs](./examples/tokio_tcp.rs).
+[examples/tokio_tcp.rs](https://github.com/plabayo/tokio-graceful/tree/main/examples/tokio_tcp.rs).
 
 ### Example: Hyper
 
 In case you wish to use this library as a [Hyper](https://hyper.rs/) user
 you can do so using pretty much the same approach as
 the Tokio tcp example. Except that it's a lot easier
-out of the box: [examples/hyper.rs](./examples/hyper.rs)
+out of the box: [examples/hyper.rs](https://github.com/plabayo/tokio-graceful/tree/main/examples/hyper.rs)
 
 ## Contributing
 

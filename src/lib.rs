@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 mod guard;
 pub use guard::{ShutdownGuard, WeakShutdownGuard};
 
