@@ -22,7 +22,7 @@ impl ShutdownGuard {
         ref_count: Arc<AtomicUsize>,
     ) -> Self {
         let value = ref_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        tracing::trace!("new shutdown guard: ref_count: {}", value + 1);
+        tracing::trace!("new shutdown guard: ref_count+1: {}", value + 1);
         Self(WeakShutdownGuard::new(
             notify_signal,
             notify_zero,
@@ -90,8 +90,18 @@ impl Clone for ShutdownGuard {
             .0
             .ref_count
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        tracing::trace!("clone shutdown guard: ref_count: {}", value + 1);
+        tracing::trace!("clone shutdown guard: ref_count+1: {}", value + 1);
         Self(self.0.clone())
+    }
+}
+
+impl From<WeakShutdownGuard> for ShutdownGuard {
+    fn from(weak_guard: WeakShutdownGuard) -> ShutdownGuard {
+        let value = weak_guard
+            .ref_count
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        tracing::trace!("from weak shutdown guard: ref_count+1: {}", value + 1);
+        Self(weak_guard)
     }
 }
 
@@ -101,7 +111,7 @@ impl Drop for ShutdownGuard {
             .0
             .ref_count
             .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
-        tracing::trace!("drop shutdown guard: ref_count: {}", cnt - 1);
+        tracing::trace!("drop shutdown guard: ref_count-1: {}", cnt - 1);
         if cnt == 1 {
             self.0.notify_zero.notify_one();
         }
@@ -126,13 +136,8 @@ impl WeakShutdownGuard {
         self.notify_signal.notified().await;
     }
 
-    pub fn upgrade(self) -> Option<ShutdownGuard> {
-        if self.ref_count.load(std::sync::atomic::Ordering::SeqCst) == 0 {
-            None
-        } else {
-            self.ref_count
-                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            Some(ShutdownGuard(self))
-        }
+    #[inline]
+    pub fn upgrade(self) -> ShutdownGuard {
+        self.into()
     }
 }

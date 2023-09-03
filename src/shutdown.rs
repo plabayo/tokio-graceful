@@ -27,14 +27,17 @@ impl Shutdown {
         Self { guard, notify_zero }
     }
 
+    #[inline]
     pub fn guard(&self) -> ShutdownGuard {
         self.guard.clone()
     }
 
+    #[inline]
     pub fn guard_weak(&self) -> WeakShutdownGuard {
         self.guard.clone_weak()
     }
 
+    #[inline]
     pub fn spawn_task<T>(&self, task: T) -> tokio::task::JoinHandle<T::Output>
     where
         T: Future + Send + 'static,
@@ -43,6 +46,7 @@ impl Shutdown {
         self.guard.spawn_task(task)
     }
 
+    #[inline]
     pub fn spawn_task_fn<T, F>(&self, task: F) -> tokio::task::JoinHandle<T::Output>
     where
         T: Future + Send + 'static,
@@ -54,16 +58,28 @@ impl Shutdown {
 
     pub async fn shutdown(self) {
         let zero_notified = self.notify_zero.notified();
+        tracing::trace!("::shutdown: waiting for signal to trigger (read: to be cancelled)");
         self.guard.downgrade().cancelled().await;
+        tracing::trace!("::shutdown: waiting for all guards to drop");
         zero_notified.await;
+        tracing::trace!("::shutdown: ready");
     }
 
-    pub async fn shutdown_with_limit(self, limit: time::Duration) -> Result<(), TimeoutError> {
+    pub async fn shutdown_with_limit(
+        self,
+        limit: time::Duration,
+    ) -> Result<time::Duration, TimeoutError> {
         let zero_notified = self.notify_zero.notified();
+        tracing::trace!("::shutdown: waiting for signal to trigger (read: to be cancelled)");
         self.guard.downgrade().cancelled().await;
+        tracing::trace!(
+            "::shutdown: waiting for all guards to drop for a max of {}s",
+            limit.as_secs_f64()
+        );
+        let start: time::Instant = time::Instant::now();
         tokio::select! {
-            _ = tokio::time::sleep(limit) => { Err(TimeoutError) }
-            _ = zero_notified => { Ok(()) }
+            _ = tokio::time::sleep(limit) => { Err(TimeoutError(limit)) }
+            _ = zero_notified => { Ok(start.elapsed()) }
         }
     }
 }
@@ -89,11 +105,11 @@ impl Default for Shutdown {
 }
 
 #[derive(Debug)]
-pub struct TimeoutError;
+pub struct TimeoutError(time::Duration);
 
 impl std::fmt::Display for TimeoutError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("timeout")
+        write!(f, "timeout after {}s", self.0.as_secs_f64())
     }
 }
 

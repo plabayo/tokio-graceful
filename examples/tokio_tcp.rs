@@ -21,12 +21,16 @@ async fn main() {
 
     shutdown.spawn_task_fn(serve_tcp);
 
-    if shutdown
-        .shutdown_with_limit(Duration::from_secs(10))
-        .await
-        .is_err()
-    {
-        tracing::warn!("shutdown: forcefully due to timeout");
+    match shutdown.shutdown_with_limit(Duration::from_secs(10)).await {
+        Ok(elapsed) => {
+            tracing::info!(
+                "shutdown: gracefully {}s after shutdown signal received",
+                elapsed.as_secs_f64()
+            );
+        }
+        Err(e) => {
+            tracing::warn!("shutdown: forcefully due to timeout: {}", e);
+        }
     }
 
     tracing::info!("Bye!");
