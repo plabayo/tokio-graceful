@@ -54,12 +54,15 @@ impl Shutdown {
         self.guard.spawn_task_fn(task)
     }
 
-    pub async fn shutdown(self) {
+    pub async fn shutdown(self) -> time::Duration {
         tracing::trace!("::shutdown: waiting for signal to trigger (read: to be cancelled)");
         self.guard.downgrade().cancelled().await;
         tracing::trace!("::shutdown: waiting for all guards to drop");
+        let start: time::Instant = time::Instant::now();
         self.zero_rx.await;
-        tracing::trace!("::shutdown: ready");
+        let elapsed = start.elapsed();
+        tracing::trace!("::shutdown: ready after {}s", elapsed.as_secs_f64());
+        elapsed
     }
 
     pub async fn shutdown_with_limit(
@@ -74,8 +77,15 @@ impl Shutdown {
         );
         let start: time::Instant = time::Instant::now();
         tokio::select! {
-            _ = tokio::time::sleep(limit) => { Err(TimeoutError(limit)) }
-            _ = self.zero_rx => { Ok(start.elapsed()) }
+            _ = tokio::time::sleep(limit) => {
+                tracing::trace!("::shutdown: timeout after {}s", limit.as_secs_f64());
+                Err(TimeoutError(limit))
+            }
+            _ = self.zero_rx => {
+                let elapsed = start.elapsed();
+                tracing::trace!("::shutdown: ready after {}s", elapsed.as_secs_f64());
+                Ok(elapsed)
+            }
         }
     }
 }
