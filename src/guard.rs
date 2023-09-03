@@ -3,31 +3,25 @@ use std::{
     sync::{atomic::AtomicUsize, Arc},
 };
 
-use tokio::{sync::Notify, task::JoinHandle};
+use tokio::task::JoinHandle;
+
+use crate::trigger::{Receiver, Sender};
 
 #[derive(Debug)]
 pub struct ShutdownGuard(WeakShutdownGuard);
 
 #[derive(Debug, Clone)]
 pub struct WeakShutdownGuard {
-    pub(crate) notify_signal: Arc<Notify>,
-    pub(crate) notify_zero: Arc<Notify>,
+    pub(crate) trigger_rx: Receiver,
+    pub(crate) zero_tx: Sender,
     pub(crate) ref_count: Arc<AtomicUsize>,
 }
 
 impl ShutdownGuard {
-    pub fn new(
-        notify_signal: Arc<Notify>,
-        notify_zero: Arc<Notify>,
-        ref_count: Arc<AtomicUsize>,
-    ) -> Self {
+    pub fn new(trigger_rx: Receiver, zero_tx: Sender, ref_count: Arc<AtomicUsize>) -> Self {
         let value = ref_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         tracing::trace!("new shutdown guard: ref_count+1: {}", value + 1);
-        Self(WeakShutdownGuard::new(
-            notify_signal,
-            notify_zero,
-            ref_count,
-        ))
+        Self(WeakShutdownGuard::new(trigger_rx, zero_tx, ref_count))
     }
 
     #[inline]
@@ -113,27 +107,23 @@ impl Drop for ShutdownGuard {
             .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
         tracing::trace!("drop shutdown guard: ref_count-1: {}", cnt - 1);
         if cnt == 1 {
-            self.0.notify_zero.notify_one();
+            self.0.zero_tx.trigger();
         }
     }
 }
 
 impl WeakShutdownGuard {
-    pub fn new(
-        notify_signal: Arc<Notify>,
-        notify_zero: Arc<Notify>,
-        ref_count: Arc<AtomicUsize>,
-    ) -> Self {
+    pub fn new(trigger_rx: Receiver, zero_tx: Sender, ref_count: Arc<AtomicUsize>) -> Self {
         Self {
-            notify_signal,
-            notify_zero,
+            trigger_rx,
+            zero_tx,
             ref_count,
         }
     }
 
     #[inline]
     pub async fn cancelled(&self) {
-        self.notify_signal.notified().await;
+        self.trigger_rx.clone().await;
     }
 
     #[inline]

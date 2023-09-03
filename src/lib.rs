@@ -5,3 +5,5 @@ pub use guard::{ShutdownGuard, WeakShutdownGuard};
 
 mod shutdown;
 pub use shutdown::Shutdown;
+
+pub(crate) mod trigger;

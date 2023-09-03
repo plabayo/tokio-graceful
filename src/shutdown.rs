@@ -1,30 +1,28 @@
 use std::{future::Future, sync::Arc, time};
 
-use tokio::sync::Notify;
-
-use crate::{ShutdownGuard, WeakShutdownGuard};
+use crate::{
+    trigger::{trigger, Receiver},
+    ShutdownGuard, WeakShutdownGuard,
+};
 
 pub struct Shutdown {
     guard: ShutdownGuard,
-    notify_zero: Arc<Notify>,
+    zero_rx: Receiver,
 }
 
 impl Shutdown {
     pub fn new(signal: impl Future<Output = ()> + Send + 'static) -> Self {
-        let notify_signal = Arc::new(Notify::new());
-        let notify_zero = Arc::new(Notify::new());
-        let guard = ShutdownGuard::new(
-            notify_signal.clone(),
-            notify_zero.clone(),
-            Arc::new(0usize.into()),
-        );
+        let (signal_tx, signal_rx) = trigger();
+        let (zero_tx, zero_rx) = trigger();
+
+        let guard = ShutdownGuard::new(signal_rx, zero_tx, Arc::new(0usize.into()));
 
         tokio::spawn(async move {
             signal.await;
-            notify_signal.notify_waiters();
+            signal_tx.trigger();
         });
 
-        Self { guard, notify_zero }
+        Self { guard, zero_rx }
     }
 
     #[inline]
@@ -57,11 +55,10 @@ impl Shutdown {
     }
 
     pub async fn shutdown(self) {
-        let zero_notified = self.notify_zero.notified();
         tracing::trace!("::shutdown: waiting for signal to trigger (read: to be cancelled)");
         self.guard.downgrade().cancelled().await;
         tracing::trace!("::shutdown: waiting for all guards to drop");
-        zero_notified.await;
+        self.zero_rx.await;
         tracing::trace!("::shutdown: ready");
     }
 
@@ -69,7 +66,6 @@ impl Shutdown {
         self,
         limit: time::Duration,
     ) -> Result<time::Duration, TimeoutError> {
-        let zero_notified = self.notify_zero.notified();
         tracing::trace!("::shutdown: waiting for signal to trigger (read: to be cancelled)");
         self.guard.downgrade().cancelled().await;
         tracing::trace!(
@@ -79,7 +75,7 @@ impl Shutdown {
         let start: time::Instant = time::Instant::now();
         tokio::select! {
             _ = tokio::time::sleep(limit) => { Err(TimeoutError(limit)) }
-            _ = zero_notified => { Ok(start.elapsed()) }
+            _ = self.zero_rx => { Ok(start.elapsed()) }
         }
     }
 }
