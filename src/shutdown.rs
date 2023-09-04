@@ -171,11 +171,11 @@ impl Shutdown {
 
 /// Returns a [`Future`] that completes once one of the default signals
 /// (SIGINT and CTRL-C) are received.
-/// 
+///
 /// Exposed to you so you can easily expand it by for example
 /// chaining it with a [`tokio::time::sleep`] to have a delay
 /// before shutdown is triggered.
-/// 
+///
 /// [`Future`]: std::future::Future
 /// [`tokio::time::sleep`]: https://docs.rs/tokio/*/tokio/time/fn.sleep.html
 pub async fn default_signal() {
