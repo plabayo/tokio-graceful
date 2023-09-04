@@ -138,13 +138,14 @@ jobs:
       - uses: actions/checkout@v3
       - uses: EmbarkStudios/cargo-deny-action@v1
 
-  semver-checks:
-    needs: check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Check semver
-        uses: obi1kenobi/cargo-semver-checks-action@v2
-        with:
-          rust-toolchain: ${{env.RUST_TOOLCHAIN}}
+  # TODO: enable once we have a published crate :)
+  # semver-checks:
+  #   needs: check
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v3
+  #     - name: Check semver
+  #       uses: obi1kenobi/cargo-semver-checks-action@v2
+  #       with:
+  #         rust-toolchain: ${{env.RUST_TOOLCHAIN}}
