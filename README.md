@@ -27,16 +27,37 @@ Utilities for graceful shutdown of [tokio](https://tokio.rs/) applications.
 
 ## Examples
 
-How to use this crate might be easiest to explain
-by showing an example, which you can find at
-[examples/tokio_tcp.rs](https://github.com/plabayo/tokio-graceful/tree/main/examples/tokio_tcp.rs).
+### Runnable Examples
 
-### Example: Hyper
+The runnable examples are best run with `RUST_LOG=trace` environment variable set,
+such that you see the verbose logs of `tokio-graceful` and really see it in action
+and get a sense on how it works, or at least its flow is.
+
+> [examples/tokio_tcp.rs](https://github.com/plabayo/tokio-graceful/tree/main/examples/tokio_tcp.rs)
+>
+> ```
+> RUST_LOG=trace cargo run --example tokio_tcp
+> ```
+
+The `tokio_tcp` example showcases the original use case of why `tokio-graceful` shutdown was developed,
+as it makes managing graceful shutdown from start to finish a lot easier, without immediately grabbing
+to big power tools or providing more then is needed.
+
+The example runs a tcp 'echo' server which you can best play with using
+telnet: `telnet 127.0.0.1 8080`. As you are in control of when to exit you can easily let it timeout if you wish.
+
+> [examples/hyper.rs](https://github.com/plabayo/tokio-graceful/tree/main/examples/hyper.rs)
+>
+> ```
+> RUST_LOG=trace cargo run --example hyper
+> ```
 
 In case you wish to use this library as a [Hyper](https://hyper.rs/) user
 you can do so using pretty much the same approach as
-the Tokio tcp example. Except that it's a lot easier
-out of the box: [examples/hyper.rs](https://github.com/plabayo/tokio-graceful/tree/main/examples/hyper.rs)
+the Tokio tcp example.
+
+This example only has one router server function which returns 'hello' (200 OK) after 5s.
+The delay is there to allow you to see the graceful shutdown in action.
 
 ## Contributing
 
@@ -49,6 +70,7 @@ you! We have a [contributing guide][contributing] to help you get involved in th
 Special shoutout for this library goes to [the Tokio ecosystem](https://tokio.rs/).
 Those who developed it as well as the folks hanging on the [Tokio discord server](https://discord.gg/tokio).
 The discussions and Q&A sessions with them were very crucial to the development of this project.
+Tokio's codebase is also a gem of examples on what is possible and what are good practices.
 
 In this context also an extra shoutout to [@tobz](https://github.com/tobz) who
 gave me the idea of approaching it from an Atomic perspective instead
