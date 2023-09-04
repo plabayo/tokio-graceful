@@ -18,5 +18,5 @@ tracing = "0.1"
 
 [dev-dependencies]
 hyper = { version = "0.14", features = [ "server", "tcp", "http1", "http2" ] }
-tokio = { version = "1", features = ["net", "rt-multi-thread", "io-util"] }
+tokio = { version = "1", features = ["net", "rt-multi-thread", "io-util", "test-util"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

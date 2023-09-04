@@ -35,7 +35,7 @@ and get a sense on how it works, or at least its flow is.
 
 > [examples/tokio_tcp.rs](https://github.com/plabayo/tokio-graceful/tree/main/examples/tokio_tcp.rs)
 >
-> ```
+> ```bash
 > RUST_LOG=trace cargo run --example tokio_tcp
 > ```
 
@@ -48,7 +48,7 @@ telnet: `telnet 127.0.0.1 8080`. As you are in control of when to exit you can e
 
 > [examples/hyper.rs](https://github.com/plabayo/tokio-graceful/tree/main/examples/hyper.rs)
 >
-> ```
+> ```bash
 > RUST_LOG=trace cargo run --example hyper
 > ```
 
