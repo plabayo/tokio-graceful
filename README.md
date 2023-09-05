@@ -26,9 +26,9 @@
 Shutdown management for graceful shutdown of [tokio](https://tokio.rs/) applications.
 Guard creating and usage is lock-free and the crate only locks when:
 
-- the shutdwn signal was not yet given and you wait with a (weak or strong) guard
-  on whether or not it was in fact canelled;
-- the check of whether or not the app can shuts down typically is locked until
+- the shutdown signal was not yet given and you wait with a (weak or strong) guard
+  on whether or not it was in fact cancelled;
+- the check of whether or not the app can shut down typically is locked until
   the shutdown signal was received and all (strong) guards were dropped.
 
 This crate is written in 100% safe Rust code.
@@ -103,7 +103,6 @@ async fn main() {
     // even this one however will know it was cancelled
     guard.cancelled().await;
 }
-
 ```
 
 ### Runnable Examples
@@ -114,7 +113,7 @@ an actual production-like setting. That's what these runnable examples are for.
 
 The runnable examples are best run with `RUST_LOG=trace` environment variable set,
 such that you see the verbose logs of `tokio-graceful` and really see it in action
-and get a sense on how it works, or at least its flow is.
+and get a sense on how it works, or at least its flow.
 
 > [examples/tokio_tcp.rs](https://github.com/plabayo/tokio-graceful/tree/main/examples/tokio_tcp.rs)
 >
@@ -124,7 +123,7 @@ and get a sense on how it works, or at least its flow is.
 
 The `tokio_tcp` example showcases the original use case of why `tokio-graceful` shutdown was developed,
 as it makes managing graceful shutdown from start to finish a lot easier, without immediately grabbing
-to big power tools or providing more then is needed.
+to big power tools or providing more than is needed.
 
 The example runs a tcp 'echo' server which you can best play with using
 telnet: `telnet 127.0.0.1 8080`. As you are in control of when to exit you can easily let it timeout if you wish.
@@ -144,7 +143,7 @@ The delay is there to allow you to see the graceful shutdown in action.
 
 ## Contributing
 
-:balloon: Thanks for your help improving the project! We are so happy to have
+🎈 Thanks for your help improving the project! We are so happy to have
 you! We have a [contributing guide][contributing] to help you get involved in the
 `tokio-graceful` project.
 
