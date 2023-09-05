@@ -31,8 +31,6 @@ Guard creating and usage is lock-free and the crate only locks when:
 - the check of whether or not the app can shut down typically is locked until
   the shutdown signal was received and all (strong) guards were dropped.
 
-This crate is written in 100% safe Rust code.
-
 ## Index
 
 - [Examples](#examples): quick overview of how to use this crate;

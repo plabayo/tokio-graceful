@@ -32,7 +32,6 @@
     nonstandard_style,
     missing_docs
 )]
-#![forbid(unsafe_code)]
 #![allow(elided_lifetimes_in_paths, clippy::type_complexity)]
 #![cfg_attr(test, allow(clippy::float_cmp))]
 #![cfg_attr(docsrs, feature(doc_auto_cfg, doc_cfg))]

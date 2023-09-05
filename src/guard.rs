@@ -1,5 +1,6 @@
 use std::{
     future::Future,
+    mem::ManuallyDrop,
     sync::{atomic::AtomicUsize, Arc},
 };
 
@@ -17,7 +18,7 @@ use crate::trigger::{Receiver, Sender};
 /// [`Shutdown`]: crate::Shutdown
 /// [`Shutdown::shutdown`]: crate::Shutdown::shutdown
 #[derive(Debug)]
-pub struct ShutdownGuard(WeakShutdownGuard);
+pub struct ShutdownGuard(ManuallyDrop<WeakShutdownGuard>);
 
 /// A weak guard, linked to a [`Shutdown`] struct,
 /// is similar to a [`ShutdownGuard`] but does not
@@ -36,7 +37,9 @@ impl ShutdownGuard {
     pub(crate) fn new(trigger_rx: Receiver, zero_tx: Sender, ref_count: Arc<AtomicUsize>) -> Self {
         let value = ref_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         tracing::trace!("new shutdown guard: ref_count+1: {}", value + 1);
-        Self(WeakShutdownGuard::new(trigger_rx, zero_tx, ref_count))
+        Self(ManuallyDrop::new(WeakShutdownGuard::new(
+            trigger_rx, zero_tx, ref_count,
+        )))
     }
 
     /// Returns a Future that gets fulfilled when cancellation (shutdown) is requested.
@@ -137,8 +140,8 @@ impl ShutdownGuard {
     /// [`Shutdown::shutdown`] future from completing.
     ///
     /// [`Shutdown::shutdown`]: crate::Shutdown::shutdown
-    pub fn downgrade(self) -> WeakShutdownGuard {
-        self.0
+    pub fn downgrade(mut self) -> WeakShutdownGuard {
+        unsafe { ManuallyDrop::take(&mut self.0) }
     }
 
     /// Clones the guard as a [`WeakShutdownGuard`],
@@ -147,7 +150,7 @@ impl ShutdownGuard {
     ///
     /// [`Shutdown::shutdown`]: crate::Shutdown::shutdown
     pub fn clone_weak(&self) -> WeakShutdownGuard {
-        self.0.clone()
+        ManuallyDrop::into_inner(self.0.clone())
     }
 }
 
@@ -168,7 +171,7 @@ impl From<WeakShutdownGuard> for ShutdownGuard {
             .ref_count
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         tracing::trace!("from weak shutdown guard: ref_count+1: {}", value + 1);
-        Self(weak_guard)
+        Self(ManuallyDrop::new(weak_guard))
     }
 }
 
