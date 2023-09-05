@@ -2,7 +2,7 @@
 categories = ["asynchronous", "network-programming"]
 edition = "2021"
 name = "tokio-graceful"
-version = "0.1.0"
+version = "0.1.1"
 description = "util for graceful shutdown of tokio applications"
 homepage = "https://github.com/plabayo/tokio-graceful"
 readme = "README.md"

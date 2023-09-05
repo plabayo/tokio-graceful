@@ -90,7 +90,11 @@ impl ShutdownGuard {
         T: Future + Send + 'static,
         T::Output: Send + 'static,
     {
-        self.spawn_task(task)
+        tokio::spawn(async move {
+            let output = task.await;
+            drop(self);
+            output
+        })
     }
 
     /// Returns a Tokio [`JoinHandle`] that can be awaited on
@@ -125,7 +129,7 @@ impl ShutdownGuard {
         T: Future + Send + 'static,
         T::Output: Send + 'static,
     {
-        self.spawn_task_fn(task)
+        tokio::spawn(async move { task(self).await })
     }
 
     /// Downgrades the guard to a [`WeakShutdownGuard`],
