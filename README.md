@@ -225,3 +225,12 @@ environments there is no need for top-down cancellation mechanisms. Therefore we
 nothing built in as this allows us to keep the API and source code simpler, and on top of
 that gives us the freedom to change some internal details in the future without having
 to continue to support this usecase.
+
+> Could you make a video explaining why you made this crate, how to use it and how it works?
+
+Most certainly. You can find the VOD at <https://www.youtube.com/watch?v=GAkOJgrE3CQ>
+which is part of our Rust 101 video playlist: <https://www.youtube.com/watch?v=EngAlbv2y98&list=PLQgXEsLXFxpVyLddG8FFXfNQEiodTzAjj>
+
+Do you want to learn Rust or improve your Rust knowledge?
+
+Check out <https://rust-lang.guide/> and see if it can help you in that journey.
