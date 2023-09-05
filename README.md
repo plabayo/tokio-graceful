@@ -33,6 +33,16 @@ Guard creating and usage is lock-free and the crate only locks when:
 
 This crate is written in 100% safe Rust code.
 
+## Index
+
+- [Examples](#examples): quick overview of how to use this crate;
+    - Make sure to also check out the
+      [Tokio TCP](https://github.com/plabayo/tokio-graceful/tree/main/examples/tokio_tcp.rs)
+      and [Hyper](https://github.com/plabayo/tokio-graceful/tree/main/examples/hyper.rs) examples for typical "real world" usage!
+- [Contributing information](#contributing) and special [shoutouts](#shoutouts).
+- [Licensing](#license) info and what happens to [your contributions](#contribution).
+- [Frequently Asked Questions](#faq)
+
 ## Examples
 
 One example to show it all:
@@ -187,3 +197,34 @@ building and maintaining open source software that `tokio-graceful` depends upon
 | - | - | - |
 | 💌 | [Tokio](https://github.com/tokio-rs) | (Tokio, Async Runtime)
 | 💌 | [Sean McArthur](https://github.com/seanmonstar) | (Tokio)
+
+## FAQ
+
+> What is the difference with <https://tokio.rs/tokio/topics/shutdown>?
+
+<https://tokio.rs/tokio/topics/shutdown> is an excellent tutorial by the Tokio developers.
+It is meant to teach and inspire you on how to be able to gracefully shutdown your
+Tokio-driven application and also to give you a rough idea on when to use it.
+
+That said, nothing stops you from applying what you learn in that tutorial directly
+in your production application. It will work and very well so. However
+there is a lot of management of components you have to do yourself.
+
+> Ok, but what about the other crates on <https://crates.io/> that provide graceful shutdown?
+
+They work fine and they are just as easy to use as this crate. However we think that
+those crates offer more features then you need in a typical use case, are as a consequence
+more complex on the surface as well as the machinery inside.
+
+> How do I trigger the Shutdown from within a task?
+
+You can achieve this by providing your own mechanism that you feed as the "signal"
+to [`Shutdown::new`](https://docs.rs/tokio-graceful/0.1.0/tokio_graceful/struct.Shutdown.html#method.new). E.g. you could easily achieve this by using <https://docs.rs/tokio/latest/tokio/sync/struct.Notify.html> so you can notify from any task where you wish and have your signal be
+<https://docs.rs/tokio/latest/tokio/sync/struct.Notify.html#method.notified>.
+
+This is however not a usecase we have, as most web services (be it servers or proxies) typically
+wish to run all its connections independent without critical failures. In such
+environments there is no need for top-down cancellation mechanisms. Therefore we have
+nothing built in as this allows us to keep the API and source code simpler, and on top of
+that gives us the freedom to change some internal details in the future without having
+to continue to support this usecase.
