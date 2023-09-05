@@ -138,7 +138,7 @@ impl ShutdownGuard {
     ///
     /// [`Shutdown::shutdown`]: crate::Shutdown::shutdown
     pub fn downgrade(self) -> WeakShutdownGuard {
-        self.clone_weak()
+        self.0
     }
 
     /// Clones the guard as a [`WeakShutdownGuard`],
