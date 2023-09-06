@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix typos in README (thank you [@hds](https://github.com/hds));
 - Performance improvements (thank you awake readers on Reddit);
 - add more docs to README and internal code;
+- library is no longer 100% safe Rust code, due to usage of
+  <https://doc.rust-lang.org/stable/std/mem/struct.ManuallyDrop.html> in an internal struct;
 
 # 0.1.1 (05. September, 2023)
 
