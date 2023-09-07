@@ -139,6 +139,20 @@ the Tokio tcp example.
 This example only has one router server function which returns 'hello' (200 OK) after 5s.
 The delay is there to allow you to see the graceful shutdown in action.
 
+> [examples/waitgroup.rs](https://github.com/plabayo/tokio-graceful/tree/main/examples/waitgroup.rs)
+>
+> ```bash
+cargo run --example waitgroup
+> ```
+
+An example which showcases how you would use this crate to create a Waitgroup,
+which allows you to wait for multiple async jobs/tasks without
+first having to trigger a signal first.
+
+In case you need a waitgroup which does first need to wait for a signal,
+you would create a regular `Shutdown` instance using `Shutdown::new` to give
+your 'trigger' signal (a future).
+
 ## Contributing
 
 🎈 Thanks for your help improving the project! We are so happy to have

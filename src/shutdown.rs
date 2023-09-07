@@ -41,6 +41,15 @@ impl Shutdown {
         Self { guard, zero_rx }
     }
 
+    /// Creates a new [`Shutdown`] struct with no signal.
+    ///
+    /// This is useful if you want to support a Waitgroup
+    /// like system where you wish to wait for all open tasks
+    /// without requiring a signal to be triggered first.
+    pub fn no_signal() -> Self {
+        Self::new(async {})
+    }
+
     /// Returns a [`ShutdownGuard`] which primary use
     /// is to prevent the [`Shutdown`] from shutting down.
     ///
