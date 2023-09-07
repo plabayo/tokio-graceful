@@ -142,7 +142,7 @@ The delay is there to allow you to see the graceful shutdown in action.
 > [examples/waitgroup.rs](https://github.com/plabayo/tokio-graceful/tree/main/examples/waitgroup.rs)
 >
 > ```bash
-cargo run --example waitgroup
+> cargo run --example waitgroup
 > ```
 
 An example which showcases how you would use this crate to create a Waitgroup,
