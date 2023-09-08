@@ -79,7 +79,10 @@ async fn main() {
             );
         }
         Err(e) => {
-            tracing::warn!(error = &e as &dyn std::error::Error, "shutdown: forcefully due to timeout");
+            tracing::warn!(
+                error = &e as &dyn std::error::Error,
+                "shutdown: forcefully due to timeout"
+            );
         }
     }
 
@@ -108,7 +111,10 @@ async fn serve_tcp(shutdown_guard: tokio_graceful::ShutdownGuard) {
     let server = server.with_graceful_shutdown(shutdown_guard.clone_weak().into_cancelled());
 
     if let Err(err) = server.await {
-        tracing::error!(error = &err as &dyn std::error::Error, "server quit with error");
+        tracing::error!(
+            error = &err as &dyn std::error::Error,
+            "server quit with error"
+        );
     }
 }
 
