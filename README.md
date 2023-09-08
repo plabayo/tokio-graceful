@@ -139,6 +139,27 @@ the Tokio tcp example.
 This example only has one router server function which returns 'hello' (200 OK) after 5s.
 The delay is there to allow you to see the graceful shutdown in action.
 
+> [examples/hyper_panic.rs](https://github.com/plabayo/tokio-graceful/tree/main/examples/hyper_panic.rs)
+>
+> ```bash
+> RUST_LOG=trace cargo run --example hyper_panic
+> ```
+
+Same as [the `hyper` example](https://github.com/plabayo/tokio-graceful/tree/main/examples/hyper.rs)
+but showcasing how you would ensure that you manually trigger a shutdown
+using your custom signal (on top of the regular exit signal) in case for example a spawned task exits
+unexpectedly, due to an error, panic or just without any info at all (probably the worst kind of option).
+
+This is especially important to do if you perform also a setup prior to running a server in a loop,
+as those are often the parts of your code that you do make assumptions and panic otherwise.
+A common example of this is that you'll let your server (created and started from within a task)
+panic in case the chosen port was already bound to by something else.
+
+An alternative to this is approach is where you use `tokio::select!` on your `Shutdown::shutdown*` future
+together with all your critical task handles, this will also ensure that you do exit
+on unexpected exit scenarios. However that would mean that you are skipping a graceful shutdown in that case,
+which is why it is not the approach that we recommend and thus also not shutcase in our example code.
+
 > [examples/waitgroup.rs](https://github.com/plabayo/tokio-graceful/tree/main/examples/waitgroup.rs)
 >
 > ```bash
@@ -239,6 +260,12 @@ environments there is no need for top-down cancellation mechanisms. Therefore we
 nothing built in as this allows us to keep the API and source code simpler, and on top of
 that gives us the freedom to change some internal details in the future without having
 to continue to support this usecase.
+
+Related to this is the usecase where you might want to early exit in case on of your
+critical background tasks exited (with or without an error), e.g. one of your server tasks.
+See [the `examples/hyper_panic.rs`](https://github.com/plabayo/tokio-graceful/tree/main/examples/hyper_panic.rs) on how to do that.
+That same approach is what you would do for shutting down from within a task, except that
+you might use `notify` instead of `oneshot`, or something similar.
 
 > Could you make a video explaining why you made this crate, how to use it and how it works?
 
