@@ -42,6 +42,7 @@ pub use guard::{ShutdownGuard, WeakShutdownGuard};
 mod shutdown;
 pub use shutdown::{default_signal, Shutdown};
 
+pub(crate) mod sync;
 pub(crate) mod trigger;
 
 #[doc = include_str!("../README.md")]

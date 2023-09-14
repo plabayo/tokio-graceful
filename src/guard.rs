@@ -1,12 +1,11 @@
-use std::{
-    future::Future,
-    mem::ManuallyDrop,
-    sync::{atomic::AtomicUsize, Arc},
-};
+use std::{future::Future, mem::ManuallyDrop};
 
 use tokio::task::JoinHandle;
 
-use crate::trigger::{Receiver, Sender};
+use crate::{
+    sync::{Arc, AtomicUsize, Ordering},
+    trigger::{Receiver, Sender},
+};
 
 /// A guard, linked to a [`Shutdown`] struct,
 /// prevents the [`Shutdown::shutdown`] future from completing.
@@ -35,7 +34,7 @@ pub struct WeakShutdownGuard {
 
 impl ShutdownGuard {
     pub(crate) fn new(trigger_rx: Receiver, zero_tx: Sender, ref_count: Arc<AtomicUsize>) -> Self {
-        let value = ref_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let value = ref_count.fetch_add(1, Ordering::SeqCst);
         tracing::trace!("new shutdown guard: ref_count+1: {}", value + 1);
         Self(ManuallyDrop::new(WeakShutdownGuard::new(
             trigger_rx, zero_tx, ref_count,
@@ -156,10 +155,7 @@ impl ShutdownGuard {
 
 impl Clone for ShutdownGuard {
     fn clone(&self) -> Self {
-        let value = &self
-            .0
-            .ref_count
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let value = &self.0.ref_count.fetch_add(1, Ordering::SeqCst);
         tracing::trace!("clone shutdown guard: ref_count+1: {}", value + 1);
         Self(self.0.clone())
     }
@@ -167,9 +163,7 @@ impl Clone for ShutdownGuard {
 
 impl From<WeakShutdownGuard> for ShutdownGuard {
     fn from(weak_guard: WeakShutdownGuard) -> ShutdownGuard {
-        let value = weak_guard
-            .ref_count
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let value = weak_guard.ref_count.fetch_add(1, Ordering::SeqCst);
         tracing::trace!("from weak shutdown guard: ref_count+1: {}", value + 1);
         Self(ManuallyDrop::new(weak_guard))
     }
@@ -177,10 +171,7 @@ impl From<WeakShutdownGuard> for ShutdownGuard {
 
 impl Drop for ShutdownGuard {
     fn drop(&mut self) {
-        let cnt = self
-            .0
-            .ref_count
-            .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+        let cnt = self.0.ref_count.fetch_sub(1, Ordering::SeqCst);
         tracing::trace!("drop shutdown guard: ref_count-1: {}", cnt - 1);
         if cnt == 1 {
             self.0.zero_tx.trigger();

@@ -18,12 +18,13 @@
 use std::{
     future::Future,
     pin::Pin,
-    sync::{atomic::AtomicBool, Arc, Mutex},
     task::{Context, Poll, Waker},
 };
 
 use pin_project_lite::pin_project;
 use slab::Slab;
+
+use crate::sync::{Arc, AtomicBool, Mutex, Ordering};
 
 type WakerList = Arc<Mutex<Slab<Option<Waker>>>>;
 type TriggerState = Arc<AtomicBool>;
@@ -58,7 +59,7 @@ impl Subscriber {
     /// and we can update the waker with the new waker. Otherwise we insert the waker
     /// into the waker list as a new waker. Either way, we return the key of the waker.
     pub fn state(&self, cx: &mut Context, key: Option<usize>) -> SubscriberState {
-        if self.state.load(std::sync::atomic::Ordering::SeqCst) {
+        if self.state.load(Ordering::SeqCst) {
             return SubscriberState::Triggered;
         }
 
@@ -181,7 +182,7 @@ impl Sender {
 
     /// Triggers the Receiver, with a short circuit if the trigger has already been triggered.
     pub fn trigger(&self) {
-        if self.state.swap(true, std::sync::atomic::Ordering::SeqCst) {
+        if self.state.swap(true, Ordering::SeqCst) {
             return;
         }
 

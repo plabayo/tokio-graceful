@@ -1,6 +1,7 @@
-use std::{future::Future, sync::Arc, time};
+use std::{future::Future, time};
 
 use crate::{
+    sync::Arc,
     trigger::{trigger, Receiver},
     ShutdownGuard, WeakShutdownGuard,
 };
