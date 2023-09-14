@@ -40,7 +40,9 @@ mod guard;
 pub use guard::{ShutdownGuard, WeakShutdownGuard};
 
 mod shutdown;
-pub use shutdown::{default_signal, Shutdown};
+#[cfg(not(loom))]
+pub use shutdown::default_signal;
+pub use shutdown::Shutdown;
 
 pub(crate) mod sync;
 pub(crate) mod trigger;

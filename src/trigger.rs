@@ -213,3 +213,11 @@ pub fn trigger() -> (Sender, Receiver) {
 
     (sender, receiver)
 }
+
+#[cfg(all(test, loom))]
+mod loom_tests {
+    use super::*;
+
+    #[test]
+    fn test_loom_concurrent() {}
+}

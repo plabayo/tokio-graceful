@@ -1,6 +1,4 @@
 pub use loom::sync::{
     atomic::{AtomicBool, AtomicUsize, Ordering},
-    Arc, Mutex, Ordering,
+    Arc, Mutex,
 };
-
-pub use loom::task::{spawn, JoinHandle};

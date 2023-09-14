@@ -1,7 +1,7 @@
 use std::{future::Future, time};
 
 use crate::{
-    sync::Arc,
+    sync::{Arc, JoinHandle},
     trigger::{trigger, Receiver},
     ShutdownGuard, WeakShutdownGuard,
 };
@@ -12,6 +12,8 @@ use crate::{
 /// will be awaited on when shutdown is requested. Most users will want to
 /// create a [`Shutdown`] with [`Shutdown::default`], which uses the default
 /// signal handler to trigger shutdown. See [`default_signal`] for more info.
+///
+/// > (NOTE: that these defaults are not available when compiling with --cfg loom)
 ///
 /// See the [README] for more info on how to use this crate.
 ///
@@ -85,7 +87,7 @@ impl Shutdown {
     /// to wait for the spawned task to complete. See
     /// [`crate::sync::spawn`] for more information.
     #[inline]
-    pub fn spawn_task<T>(&self, task: T) -> tokio::task::JoinHandle<T::Output>
+    pub fn spawn_task<T>(&self, task: T) -> JoinHandle<T::Output>
     where
         T: Future + Send + 'static,
         T::Output: Send + 'static,
@@ -97,7 +99,7 @@ impl Shutdown {
     /// to wait for the spawned task (fn) to complete. See
     /// [`crate::sync::spawn`] for more information.
     #[inline]
-    pub fn spawn_task_fn<T, F>(&self, task: F) -> tokio::task::JoinHandle<T::Output>
+    pub fn spawn_task_fn<T, F>(&self, task: F) -> JoinHandle<T::Output>
     where
         T: Future + Send + 'static,
         T::Output: Send + 'static,
@@ -182,6 +184,7 @@ impl Shutdown {
 ///
 /// [`Future`]: std::future::Future
 /// [`tokio::time::sleep`]: https://docs.rs/tokio/*/tokio/time/fn.sleep.html
+#[cfg(not(loom))]
 pub async fn default_signal() {
     let ctrl_c = tokio::signal::ctrl_c();
     let signal = async {
@@ -196,6 +199,7 @@ pub async fn default_signal() {
     }
 }
 
+#[cfg(not(loom))]
 impl Default for Shutdown {
     fn default() -> Self {
         Self::new(default_signal())
