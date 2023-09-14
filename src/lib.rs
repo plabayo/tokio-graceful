@@ -63,7 +63,7 @@ mod tests {
         let shutdown = Shutdown::new(async {
             rx.await.unwrap();
         });
-        tokio::spawn(async move {
+        crate::sync::spawn(async move {
             tx.send(()).unwrap();
         });
         shutdown.shutdown().await;
@@ -75,7 +75,7 @@ mod tests {
         let shutdown = Shutdown::new(async {
             rx.await.unwrap();
         });
-        tokio::spawn(async move {
+        crate::sync::spawn(async move {
             tx.send(()).unwrap();
         });
         shutdown

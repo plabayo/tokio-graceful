@@ -10,14 +10,17 @@ keywords = ["io", "async", "non-blocking", "futures"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/plabayo/tokio-graceful"
 
+[target.'cfg(loom)'.dependencies]
+loom = "0.7"
+
 [dependencies]
-pin-project-lite = "0.2.13"
-slab = "0.4.9"
+pin-project-lite = "0.2"
+slab = "0.4"
 tokio = { version = "1", features = ["rt", "signal", "sync", "macros", "time"] }
 tracing = "0.1"
 
 [dev-dependencies]
 hyper = { version = "0.14", features = [ "server", "tcp", "http1", "http2" ] }
-rand = "0.8.5"
+rand = "0.8"
 tokio = { version = "1", features = ["net", "rt-multi-thread", "io-util", "test-util"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

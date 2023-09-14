@@ -1,9 +1,7 @@
 use std::{future::Future, mem::ManuallyDrop};
 
-use tokio::task::JoinHandle;
-
 use crate::{
-    sync::{Arc, AtomicUsize, Ordering},
+    sync::{Arc, AtomicUsize, JoinHandle, Ordering},
     trigger::{Receiver, Sender},
 };
 
@@ -58,53 +56,44 @@ impl ShutdownGuard {
         self.0.cancelled().await
     }
 
-    /// Returns a Tokio [`JoinHandle`] that can be awaited on
+    /// Returns a [`crate::sync::JoinHandle`] that can be awaited on
     /// to wait for the spawned task to complete. See
-    /// [`tokio::spawn`] for more information.
-    ///
-    /// [`JoinHandle`]: https://docs.rs/tokio/*/tokio/task/struct.JoinHandle.html
-    /// [`tokio::spawn`]: https://docs.rs/tokio/*/tokio/task/fn.spawn.html
+    /// [`crate::sync::spawn`] for more information.
     pub fn spawn_task<T>(&self, task: T) -> JoinHandle<T::Output>
     where
         T: Future + Send + 'static,
         T::Output: Send + 'static,
     {
         let guard = self.clone();
-        tokio::spawn(async move {
+        crate::sync::spawn(async move {
             let output = task.await;
             drop(guard);
             output
         })
     }
 
-    /// Returns a Tokio [`JoinHandle`] that can be awaited on
+    /// Returns a Tokio [`crate::sync::JoinHandle`] that can be awaited on
     /// to wait for the spawned task (future) to complete. See
-    /// [`tokio::spawn`] for more information.
+    /// [`crate::sync::spawn`] for more information.
     ///
     /// In contrast to [`ShutdownGuard::spawn_task`] this method consumes the guard,
     /// ensuring the guard is dropped once the task future is fulfilled.
-    ///
-    /// [`JoinHandle`]: https://docs.rs/tokio/*/tokio/task/struct.JoinHandle.html
-    /// [`tokio::spawn`]: https://docs.rs/tokio/*/tokio/task/fn.spawn.html
     /// [`ShutdownGuard::spawn_task`]: crate::ShutdownGuard::spawn_task
     pub fn into_spawn_task<T>(self, task: T) -> JoinHandle<T::Output>
     where
         T: Future + Send + 'static,
         T::Output: Send + 'static,
     {
-        tokio::spawn(async move {
+        crate::sync::spawn(async move {
             let output = task.await;
             drop(self);
             output
         })
     }
 
-    /// Returns a Tokio [`JoinHandle`] that can be awaited on
+    /// Returns a Tokio [`crate::sync::JoinHandle`] that can be awaited on
     /// to wait for the spawned task (fn) to complete. See
-    /// [`tokio::spawn`] for more information.
-    ///
-    /// [`JoinHandle`]: https://docs.rs/tokio/*/tokio/task/struct.JoinHandle.html
-    /// [`tokio::spawn`]: https://docs.rs/tokio/*/tokio/task/fn.spawn.html
+    /// [`crate::sync::spawn`] for more information.
     pub fn spawn_task_fn<F, T>(&self, task: F) -> JoinHandle<T::Output>
     where
         F: FnOnce(ShutdownGuard) -> T + Send + 'static,
@@ -112,18 +101,15 @@ impl ShutdownGuard {
         T::Output: Send + 'static,
     {
         let guard = self.clone();
-        tokio::spawn(async move { task(guard).await })
+        crate::sync::spawn(async move { task(guard).await })
     }
 
-    /// Returns a Tokio [`JoinHandle`] that can be awaited on
+    /// Returns a Tokio [`crate::sync::JoinHandle`] that can be awaited on
     /// to wait for the spawned task (fn) to complete. See
-    /// [`tokio::spawn`] for more information.
+    /// [`crate::sync::spawn`] for more information.
     ///
     /// In contrast to [`ShutdownGuard::spawn_task_fn`] this method consumes the guard,
     /// ensuring the guard is dropped once the task future is fulfilled.
-    ///
-    /// [`JoinHandle`]: https://docs.rs/tokio/*/tokio/task/struct.JoinHandle.html
-    /// [`tokio::spawn`]: https://docs.rs/tokio/*/tokio/task/fn.spawn.html
     /// [`ShutdownGuard::spawn_task_fn`]: crate::ShutdownGuard::spawn_task_fn
     pub fn into_spawn_task_fn<F, T>(self, task: F) -> JoinHandle<T::Output>
     where
@@ -131,7 +117,7 @@ impl ShutdownGuard {
         T: Future + Send + 'static,
         T::Output: Send + 'static,
     {
-        tokio::spawn(async move { task(self).await })
+        crate::sync::spawn(async move { task(self).await })
     }
 
     /// Downgrades the guard to a [`WeakShutdownGuard`],

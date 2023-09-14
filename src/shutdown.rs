@@ -34,7 +34,7 @@ impl Shutdown {
 
         let guard = ShutdownGuard::new(signal_rx, zero_tx, Arc::new(0usize.into()));
 
-        tokio::spawn(async move {
+        crate::sync::spawn(async move {
             signal.await;
             signal_tx.trigger();
         });
@@ -81,12 +81,9 @@ impl Shutdown {
         self.guard.clone_weak()
     }
 
-    /// Returns a Tokio [`JoinHandle`] that can be awaited on
+    /// Returns a Tokio [`crate::sync::JoinHandle`] that can be awaited on
     /// to wait for the spawned task to complete. See
-    /// [`tokio::spawn`] for more information.
-    ///
-    /// [`JoinHandle`]: https://docs.rs/tokio/*/tokio/task/struct.JoinHandle.html
-    /// [`tokio::spawn`]: https://docs.rs/tokio/*/tokio/task/fn.spawn.html
+    /// [`crate::sync::spawn`] for more information.
     #[inline]
     pub fn spawn_task<T>(&self, task: T) -> tokio::task::JoinHandle<T::Output>
     where
@@ -96,12 +93,9 @@ impl Shutdown {
         self.guard.spawn_task(task)
     }
 
-    /// Returns a Tokio [`JoinHandle`] that can be awaited on
+    /// Returns a Tokio [`crate::sync::JoinHandle`] that can be awaited on
     /// to wait for the spawned task (fn) to complete. See
-    /// [`tokio::spawn`] for more information.
-    ///
-    /// [`JoinHandle`]: https://docs.rs/tokio/*/tokio/task/struct.JoinHandle.html
-    /// [`tokio::spawn`]: https://docs.rs/tokio/*/tokio/task/fn.spawn.html
+    /// [`crate::sync::spawn`] for more information.
     #[inline]
     pub fn spawn_task_fn<T, F>(&self, task: F) -> tokio::task::JoinHandle<T::Output>
     where
