@@ -218,6 +218,22 @@ pub fn trigger() -> (Sender, Receiver) {
 mod loom_tests {
     use super::*;
 
+    use loom::{future::block_on, thread};
+
     #[test]
-    fn test_loom_concurrent() {}
+    fn test_loom_sender_trigger() {
+        loom::model(|| {
+            let (sender, receiver) = trigger();
+
+            let th = thread::spawn(move || {
+                sender.trigger();
+            });
+
+            block_on(async move {
+                receiver.await;
+            });
+
+            th.join().unwrap();
+        });
+    }
 }

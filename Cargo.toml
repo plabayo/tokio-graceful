@@ -11,7 +11,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/plabayo/tokio-graceful"
 
 [target.'cfg(loom)'.dependencies]
-loom = "0.7"
+loom = { version = "0.7", features = ["futures", "checkpoint"] }
 
 [dependencies]
 pin-project-lite = "0.2"
