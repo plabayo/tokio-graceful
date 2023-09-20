@@ -214,6 +214,32 @@ pub fn trigger() -> (Sender, Receiver) {
     (sender, receiver)
 }
 
+#[cfg(all(test, not(loom)))]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_sender_trigger() {
+        let (sender, receiver) = trigger();
+
+        let th = tokio::spawn(async move {
+            sender.trigger();
+        });
+
+        receiver.await;
+
+        th.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_sender_never_trigger() {
+        let (_, receiver) = trigger();
+        tokio::time::timeout(std::time::Duration::from_millis(100), receiver)
+            .await
+            .unwrap_err();
+    }
+}
+
 #[cfg(all(test, loom))]
 mod loom_tests {
     use super::*;
