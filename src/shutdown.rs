@@ -175,8 +175,10 @@ impl Shutdown {
     }
 }
 
-/// Returns a [`Future`] that completes once one of the default signals
-/// (SIGINT and CTRL-C) are received.
+/// Returns a [`Future`] that completes once one of the default signals.
+///
+/// Which on Unix is Ctrl-C (sigint) or sigterm,
+/// and on Windows is Ctrl-C, Ctrl-Close or Ctrl-Shutdown.
 ///
 /// Exposed to you so you can easily expand it by for example
 /// chaining it with a [`tokio::time::sleep`] to have a delay

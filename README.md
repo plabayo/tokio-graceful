@@ -52,7 +52,7 @@ use tokio_graceful::Shutdown;
 #[tokio::main]
 async fn main() {
     // most users can just use `Shutdown::default()` to initiate
-    // shutdown upon either Sigterm or CTRL+C (Sigint).
+    // shutdown upon the default system signals.
     let signal = tokio::time::sleep(std::time::Duration::from_millis(100));
     let shutdown = Shutdown::new(signal);
 
