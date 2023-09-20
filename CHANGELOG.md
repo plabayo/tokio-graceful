@@ -5,9 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# 0.1.5 (13. September, 2023)
+# 0.1.5 (20. September, 2023)
 
-- Support and use Loom for testing... (TODO);
+- Support and use Loom for testing;
+ - Fixes a bug in the private trigger code where a race condition could cause a deadlock (found using loom);
+- Signal / Project support for the Windows platform;
+  - affected code: `crate::default_signal` and `crate::Shutdown::default`;
+    - Unix and Windows are supported and have this code enabled;
+    - Other platforms won't have this code;
+    - When using Loom this code is also not there;
+  - This fixes build errors for platforms that we do not support for the default signal;
 
 # 0.1.4 (08. September, 2023)
 
