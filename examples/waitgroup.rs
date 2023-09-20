@@ -23,7 +23,7 @@ async fn main() {
         // NOTE: you can also manually create
         // a guard using `shutdown.guard()` and spawn
         // you async tasks manually in case you do not wish to run these
-        // using `tokio::spawn`.
+        // using `tokio_graceful::sync::spawn` (Tokio by default).
         let sleep = tokio::time::sleep(Duration::from_secs(countdown));
         shutdown.spawn_task(async move {
             sleep.await;

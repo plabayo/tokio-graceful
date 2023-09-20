@@ -2,7 +2,7 @@ name: CI
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_TOOLCHAIN: nightly-2023-07-08
+  RUST_TOOLCHAIN: stable
 
 on:
   push:
@@ -97,6 +97,25 @@ jobs:
         with:
           command: test
           args: --all-features --examples
+
+  test-loom:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{env.RUST_TOOLCHAIN}}
+          override: true
+          profile: minimal
+      - uses: Swatinem/rust-cache@v1
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: test_loom --release
+        env:
+          RUSTFLAGS: --cfg loom
 
   cargo-hack:
     needs: check

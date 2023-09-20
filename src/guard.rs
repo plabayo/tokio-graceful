@@ -1,12 +1,9 @@
-use std::{
-    future::Future,
-    mem::ManuallyDrop,
-    sync::{atomic::AtomicUsize, Arc},
+use std::{future::Future, mem::ManuallyDrop};
+
+use crate::{
+    sync::{Arc, AtomicUsize, JoinHandle, Ordering},
+    trigger::{Receiver, Sender},
 };
-
-use tokio::task::JoinHandle;
-
-use crate::trigger::{Receiver, Sender};
 
 /// A guard, linked to a [`Shutdown`] struct,
 /// prevents the [`Shutdown::shutdown`] future from completing.
@@ -35,7 +32,7 @@ pub struct WeakShutdownGuard {
 
 impl ShutdownGuard {
     pub(crate) fn new(trigger_rx: Receiver, zero_tx: Sender, ref_count: Arc<AtomicUsize>) -> Self {
-        let value = ref_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let value = ref_count.fetch_add(1, Ordering::SeqCst);
         tracing::trace!("new shutdown guard: ref_count+1: {}", value + 1);
         Self(ManuallyDrop::new(WeakShutdownGuard::new(
             trigger_rx, zero_tx, ref_count,
@@ -59,53 +56,44 @@ impl ShutdownGuard {
         self.0.cancelled().await
     }
 
-    /// Returns a Tokio [`JoinHandle`] that can be awaited on
+    /// Returns a [`crate::sync::JoinHandle`] that can be awaited on
     /// to wait for the spawned task to complete. See
-    /// [`tokio::spawn`] for more information.
-    ///
-    /// [`JoinHandle`]: https://docs.rs/tokio/*/tokio/task/struct.JoinHandle.html
-    /// [`tokio::spawn`]: https://docs.rs/tokio/*/tokio/task/fn.spawn.html
+    /// [`crate::sync::spawn`] for more information.
     pub fn spawn_task<T>(&self, task: T) -> JoinHandle<T::Output>
     where
         T: Future + Send + 'static,
         T::Output: Send + 'static,
     {
         let guard = self.clone();
-        tokio::spawn(async move {
+        crate::sync::spawn(async move {
             let output = task.await;
             drop(guard);
             output
         })
     }
 
-    /// Returns a Tokio [`JoinHandle`] that can be awaited on
+    /// Returns a Tokio [`crate::sync::JoinHandle`] that can be awaited on
     /// to wait for the spawned task (future) to complete. See
-    /// [`tokio::spawn`] for more information.
+    /// [`crate::sync::spawn`] for more information.
     ///
     /// In contrast to [`ShutdownGuard::spawn_task`] this method consumes the guard,
     /// ensuring the guard is dropped once the task future is fulfilled.
-    ///
-    /// [`JoinHandle`]: https://docs.rs/tokio/*/tokio/task/struct.JoinHandle.html
-    /// [`tokio::spawn`]: https://docs.rs/tokio/*/tokio/task/fn.spawn.html
     /// [`ShutdownGuard::spawn_task`]: crate::ShutdownGuard::spawn_task
     pub fn into_spawn_task<T>(self, task: T) -> JoinHandle<T::Output>
     where
         T: Future + Send + 'static,
         T::Output: Send + 'static,
     {
-        tokio::spawn(async move {
+        crate::sync::spawn(async move {
             let output = task.await;
             drop(self);
             output
         })
     }
 
-    /// Returns a Tokio [`JoinHandle`] that can be awaited on
+    /// Returns a Tokio [`crate::sync::JoinHandle`] that can be awaited on
     /// to wait for the spawned task (fn) to complete. See
-    /// [`tokio::spawn`] for more information.
-    ///
-    /// [`JoinHandle`]: https://docs.rs/tokio/*/tokio/task/struct.JoinHandle.html
-    /// [`tokio::spawn`]: https://docs.rs/tokio/*/tokio/task/fn.spawn.html
+    /// [`crate::sync::spawn`] for more information.
     pub fn spawn_task_fn<F, T>(&self, task: F) -> JoinHandle<T::Output>
     where
         F: FnOnce(ShutdownGuard) -> T + Send + 'static,
@@ -113,18 +101,15 @@ impl ShutdownGuard {
         T::Output: Send + 'static,
     {
         let guard = self.clone();
-        tokio::spawn(async move { task(guard).await })
+        crate::sync::spawn(async move { task(guard).await })
     }
 
-    /// Returns a Tokio [`JoinHandle`] that can be awaited on
+    /// Returns a Tokio [`crate::sync::JoinHandle`] that can be awaited on
     /// to wait for the spawned task (fn) to complete. See
-    /// [`tokio::spawn`] for more information.
+    /// [`crate::sync::spawn`] for more information.
     ///
     /// In contrast to [`ShutdownGuard::spawn_task_fn`] this method consumes the guard,
     /// ensuring the guard is dropped once the task future is fulfilled.
-    ///
-    /// [`JoinHandle`]: https://docs.rs/tokio/*/tokio/task/struct.JoinHandle.html
-    /// [`tokio::spawn`]: https://docs.rs/tokio/*/tokio/task/fn.spawn.html
     /// [`ShutdownGuard::spawn_task_fn`]: crate::ShutdownGuard::spawn_task_fn
     pub fn into_spawn_task_fn<F, T>(self, task: F) -> JoinHandle<T::Output>
     where
@@ -132,7 +117,7 @@ impl ShutdownGuard {
         T: Future + Send + 'static,
         T::Output: Send + 'static,
     {
-        tokio::spawn(async move { task(self).await })
+        crate::sync::spawn(async move { task(self).await })
     }
 
     /// Downgrades the guard to a [`WeakShutdownGuard`],
@@ -156,10 +141,7 @@ impl ShutdownGuard {
 
 impl Clone for ShutdownGuard {
     fn clone(&self) -> Self {
-        let value = &self
-            .0
-            .ref_count
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let value = &self.0.ref_count.fetch_add(1, Ordering::SeqCst);
         tracing::trace!("clone shutdown guard: ref_count+1: {}", value + 1);
         Self(self.0.clone())
     }
@@ -167,9 +149,7 @@ impl Clone for ShutdownGuard {
 
 impl From<WeakShutdownGuard> for ShutdownGuard {
     fn from(weak_guard: WeakShutdownGuard) -> ShutdownGuard {
-        let value = weak_guard
-            .ref_count
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let value = weak_guard.ref_count.fetch_add(1, Ordering::SeqCst);
         tracing::trace!("from weak shutdown guard: ref_count+1: {}", value + 1);
         Self(ManuallyDrop::new(weak_guard))
     }
@@ -177,10 +157,7 @@ impl From<WeakShutdownGuard> for ShutdownGuard {
 
 impl Drop for ShutdownGuard {
     fn drop(&mut self) {
-        let cnt = self
-            .0
-            .ref_count
-            .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+        let cnt = self.0.ref_count.fetch_sub(1, Ordering::SeqCst);
         tracing::trace!("drop shutdown guard: ref_count-1: {}", cnt - 1);
         if cnt == 1 {
             self.0.zero_tx.trigger();

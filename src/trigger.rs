@@ -18,12 +18,13 @@
 use std::{
     future::Future,
     pin::Pin,
-    sync::{atomic::AtomicBool, Arc, Mutex},
     task::{Context, Poll, Waker},
 };
 
 use pin_project_lite::pin_project;
 use slab::Slab;
+
+use crate::sync::{Arc, AtomicBool, Mutex, Ordering};
 
 type WakerList = Arc<Mutex<Slab<Option<Waker>>>>;
 type TriggerState = Arc<AtomicBool>;
@@ -58,11 +59,19 @@ impl Subscriber {
     /// and we can update the waker with the new waker. Otherwise we insert the waker
     /// into the waker list as a new waker. Either way, we return the key of the waker.
     pub fn state(&self, cx: &mut Context, key: Option<usize>) -> SubscriberState {
-        if self.state.load(std::sync::atomic::Ordering::SeqCst) {
+        if self.state.load(Ordering::SeqCst) {
             return SubscriberState::Triggered;
         }
 
         let mut wakers = self.wakers.lock().unwrap();
+
+        // check again after locking the wakers
+        // if we didn't miss this for some reason...
+        // (without this, we could miss a trigger, and never wake up...)
+        // (this was a bug detected by loom)
+        if self.state.load(Ordering::SeqCst) {
+            return SubscriberState::Triggered;
+        }
 
         let waker = Some(cx.waker().clone());
 
@@ -181,7 +190,7 @@ impl Sender {
 
     /// Triggers the Receiver, with a short circuit if the trigger has already been triggered.
     pub fn trigger(&self) {
-        if self.state.swap(true, std::sync::atomic::Ordering::SeqCst) {
+        if self.state.swap(true, Ordering::SeqCst) {
             return;
         }
 
@@ -211,4 +220,54 @@ pub fn trigger() -> (Sender, Receiver) {
     let receiver = Receiver::new(wakers, state);
 
     (sender, receiver)
+}
+
+#[cfg(all(test, not(loom)))]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_sender_trigger() {
+        let (sender, receiver) = trigger();
+
+        let th = tokio::spawn(async move {
+            sender.trigger();
+        });
+
+        receiver.await;
+
+        th.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_sender_never_trigger() {
+        let (_, receiver) = trigger();
+        tokio::time::timeout(std::time::Duration::from_millis(100), receiver)
+            .await
+            .unwrap_err();
+    }
+}
+
+#[cfg(all(test, loom))]
+mod loom_tests {
+    use super::*;
+
+    use loom::{future::block_on, thread};
+
+    #[test]
+    fn test_loom_sender_trigger() {
+        loom::model(|| {
+            let (sender, receiver) = trigger();
+
+            let th = thread::spawn(move || {
+                sender.trigger();
+            });
+
+            block_on(async move {
+                receiver.await;
+            });
+
+            th.join().unwrap();
+        });
+    }
 }

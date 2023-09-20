@@ -40,8 +40,11 @@ mod guard;
 pub use guard::{ShutdownGuard, WeakShutdownGuard};
 
 mod shutdown;
-pub use shutdown::{default_signal, Shutdown};
+#[cfg(not(loom))]
+pub use shutdown::default_signal;
+pub use shutdown::Shutdown;
 
+pub(crate) mod sync;
 pub(crate) mod trigger;
 
 #[doc = include_str!("../README.md")]
@@ -62,7 +65,7 @@ mod tests {
         let shutdown = Shutdown::new(async {
             rx.await.unwrap();
         });
-        tokio::spawn(async move {
+        crate::sync::spawn(async move {
             tx.send(()).unwrap();
         });
         shutdown.shutdown().await;
@@ -74,7 +77,7 @@ mod tests {
         let shutdown = Shutdown::new(async {
             rx.await.unwrap();
         });
-        tokio::spawn(async move {
+        crate::sync::spawn(async move {
             tx.send(()).unwrap();
         });
         shutdown
