@@ -205,12 +205,12 @@ pub async fn default_signal() {
     #[cfg(all(not(unix), windows))]
     {
         let ctrl_close = async {
-            let signal = tokio::signal::windows::ctrl_close()?;
+            let mut signal = tokio::signal::windows::ctrl_close()?;
             signal.recv().await;
             std::io::Result::Ok(())
         };
         let ctrl_shutdown = async {
-            let signal = tokio::signal::windows::ctrl_shutdown()?;
+            let mut signal = tokio::signal::windows::ctrl_shutdown()?;
             signal.recv().await;
             std::io::Result::Ok(())
         };
