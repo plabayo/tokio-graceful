@@ -184,22 +184,43 @@ impl Shutdown {
 ///
 /// [`Future`]: std::future::Future
 /// [`tokio::time::sleep`]: https://docs.rs/tokio/*/tokio/time/fn.sleep.html
-#[cfg(not(loom))]
+#[cfg(all(not(loom), any(unix, windows)))]
 pub async fn default_signal() {
     let ctrl_c = tokio::signal::ctrl_c();
-    let signal = async {
-        let mut os_signal =
-            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
-        os_signal.recv().await;
-        std::io::Result::Ok(())
-    };
-    tokio::select! {
-        _ = ctrl_c => {}
-        _ = signal => {}
+    #[cfg(all(unix, not(windows)))]
+    {
+        let signal = async {
+            let mut os_signal =
+                tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
+            os_signal.recv().await;
+            std::io::Result::Ok(())
+        };
+        tokio::select! {
+            _ = ctrl_c => {}
+            _ = signal => {}
+        }
+    }
+    #[cfg(all(not(unix), windows))]
+    {
+        let ctrl_close = async {
+            let signal = tokio::signal::windows::ctrl_close()?;
+            signal.recv().await;
+            std::io::Result::Ok(())
+        };
+        let ctrl_shutdown = async {
+            let signal = tokio::signal::windows::ctrl_shutdown()?;
+            signal.recv().await;
+            std::io::Result::Ok(())
+        };
+        tokio::select! {
+            _ = ctrl_c => {}
+            _ = ctrl_close => {}
+            _ = ctrl_shutdown => {}
+        }
     }
 }
 
-#[cfg(not(loom))]
+#[cfg(all(not(loom), any(unix, windows)))]
 impl Default for Shutdown {
     fn default() -> Self {
         Self::new(default_signal())
