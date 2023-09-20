@@ -65,6 +65,14 @@ impl Subscriber {
 
         let mut wakers = self.wakers.lock().unwrap();
 
+        // check again after locking the wakers
+        // if we didn't miss this for some reason...
+        // (without this, we could miss a trigger, and never wake up...)
+        // (this was a bug detected by loom)
+        if self.state.load(Ordering::SeqCst) {
+            return SubscriberState::Triggered;
+        }
+
         let waker = Some(cx.waker().clone());
 
         SubscriberState::Waiting(if let Some(key) = key {
