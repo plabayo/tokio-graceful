@@ -11,10 +11,16 @@
 //! [`axum`]: https://docs.rs/axum
 
 use std::convert::Infallible;
+use std::net::SocketAddr;
 use std::time::Duration;
 
-use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Request, Response, Server};
+use bytes::Bytes;
+use http_body_util::Full;
+use hyper::server::conn::http1::Builder;
+use hyper::service::service_fn;
+use hyper::{body::Incoming, Request, Response};
+use hyper_util::rt::TokioIo;
+use tokio::net::TcpListener;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 #[tokio::main]
@@ -50,32 +56,53 @@ async fn main() {
 }
 
 async fn serve_tcp(shutdown_guard: tokio_graceful::ShutdownGuard) {
-    // For every connection, we must make a `Service` to handle all
-    // incoming HTTP requests on said connection.
-    let make_svc = make_service_fn(|_conn| {
-        // This is the `Service` that will handle the connection.
-        // `service_fn` is a helper to convert a function that
-        // returns a Response into a `Service`.
-        //
-        // NOTE, make sure to pass a clone of the shutdown guard to the service fn
-        // in case you wish to be able to cancel a long running process should the
-        // shutdown signal be received and you know that your task might not finish on time.
-        // This allows you to at least leave it behind in a consistent state such that another
-        // process can pick up where you left that task.
-        async { Ok::<_, Infallible>(service_fn(hello)) }
-    });
+    let addr: SocketAddr = ([127, 0, 0, 1], 8080).into();
 
-    let addr = ([127, 0, 0, 1], 8080).into();
+    let listener = TcpListener::bind(&addr).await.unwrap();
 
-    let server = Server::bind(&addr).serve(make_svc);
-    let server = server.with_graceful_shutdown(shutdown_guard.clone_weak().into_cancelled());
+    loop {
+        let stream = tokio::select! {
+            _ = shutdown_guard.cancelled() => {
+                tracing::info!("signal received: initiate graceful shutdown");
+                break;
+            }
+            result = listener.accept() => {
+                match result {
+                    Ok((stream, _)) => {
+                        stream
+                    }
+                    Err(e) => {
+                        tracing::warn!("accept error: {:?}", e);
+                        continue;
+                    }
+                }
+            }
+        };
+        let stream = TokioIo::new(stream);
 
-    if let Err(err) = server.await {
-        tracing::error!("server quit with error: {}", err);
+        shutdown_guard.spawn_task_fn(move |guard: tokio_graceful::ShutdownGuard| async move {
+            let conn = Builder::new()
+                .serve_connection(stream, service_fn(hello));
+            let mut conn = std::pin::pin!(conn);
+
+            loop {
+                tokio::select! {
+                    _ = guard.cancelled() => {
+                        conn.as_mut().graceful_shutdown();
+                    }
+                    result = conn.as_mut() => {
+                        if let Err(err) = result {
+                            tracing::error!(error = &err as &dyn std::error::Error, "conn exited with error");
+                        }
+                        break;
+                    }
+                }
+            }
+        });
     }
 }
 
-async fn hello(_: Request<Body>) -> Result<Response<Body>, Infallible> {
+async fn hello(_: Request<Incoming>) -> Result<Response<Full<Bytes>>, Infallible> {
     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-    Ok(Response::new(Body::from("Hello World!")))
+    Ok(Response::new(Full::from("Hello World!")))
 }

@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# 0.1.6 (01. December, 2023)
+
+- Upgrade hyper examples to adapt to dev dependency hyper v1.0 (was hyper v0.14);
+
 # 0.1.5 (20. September, 2023)
 
 - Support and use Loom for testing;
