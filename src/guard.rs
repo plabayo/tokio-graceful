@@ -43,17 +43,27 @@ impl ShutdownGuard {
     ///
     /// The future will complete immediately if the token is already cancelled when this method is called.
     ///
+    /// Use [`ShutdownGuard::cancelled_peek`] to check it once immediately without waiting.
+    ///
     /// # Cancel safety
     ///
     /// This method is cancel safe.
     ///
     /// # Panics
     ///
-    /// This method panics if the iternal mutex
+    /// This method panics if the internal mutex
     /// is poisoned while being used.
     #[inline]
     pub async fn cancelled(&self) {
         self.0.cancelled().await
+    }
+
+    /// Returns true in case the cancellation (shutdown) was right now already requested.
+    ///
+    /// Use [`ShutdownGuard::cancelled`] to wait for the cancellation (shutdown) to be requested.
+    #[inline]
+    pub fn cancelled_peek(&self) {
+        self.0.cancelled_peek();
     }
 
     /// Returns a [`crate::sync::JoinHandle`] that can be awaited on
@@ -178,17 +188,27 @@ impl WeakShutdownGuard {
     ///
     /// The future will complete immediately if the token is already cancelled when this method is called.
     ///
+    /// Use [`WeakShutdownGuard::cancelled_peek`] to check it once immediately without waiting.
+    ///
     /// # Cancel safety
     ///
     /// This method is cancel safe.
     ///
     /// # Panics
     ///
-    /// This method panics if the iternal mutex
+    /// This method panics if the internal mutex
     /// is poisoned while being used.
     #[inline]
     pub async fn cancelled(&self) {
         self.trigger_rx.clone().await;
+    }
+
+    /// Returns true in case the cancellation (shutdown) was right now already requested.
+    ///
+    /// Use [`WeakShutdownGuard::cancelled`] to wait for the cancellation (shutdown) to be requested.
+    #[inline]
+    pub fn cancelled_peek(&self) {
+        self.trigger_rx.closed();
     }
 
     /// Returns a Future that gets fulfilled when cancellation (shutdown) is requested.
@@ -204,7 +224,7 @@ impl WeakShutdownGuard {
     ///
     /// # Panics
     ///
-    /// This method panics if the iternal mutex
+    /// This method panics if the internal mutex
     /// is poisoned while being used.
     #[inline]
     pub async fn into_cancelled(self) {

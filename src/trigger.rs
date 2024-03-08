@@ -147,6 +147,10 @@ impl Receiver {
             },
         }
     }
+
+    pub(crate) fn closed(&self) -> bool {
+        matches!(self.state, ReceiverState::Closed)
+    }
 }
 
 impl Future for Receiver {
