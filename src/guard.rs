@@ -62,8 +62,8 @@ impl ShutdownGuard {
     ///
     /// Use [`ShutdownGuard::cancelled`] to wait for the cancellation (shutdown) to be requested.
     #[inline]
-    pub fn cancelled_peek(&self) {
-        self.0.cancelled_peek();
+    pub fn cancelled_peek(&self) -> bool {
+        self.0.cancelled_peek()
     }
 
     /// Returns a [`crate::sync::JoinHandle`] that can be awaited on
@@ -207,8 +207,8 @@ impl WeakShutdownGuard {
     ///
     /// Use [`WeakShutdownGuard::cancelled`] to wait for the cancellation (shutdown) to be requested.
     #[inline]
-    pub fn cancelled_peek(&self) {
-        self.trigger_rx.closed();
+    pub fn cancelled_peek(&self) -> bool {
+        self.trigger_rx.closed()
     }
 
     /// Returns a Future that gets fulfilled when cancellation (shutdown) is requested.
