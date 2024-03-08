@@ -154,7 +154,14 @@ impl Receiver {
 
     pub(crate) fn closed(&mut self) -> bool {
         match &self.state {
-            ReceiverState::Open { sub, .. } => sub.triggered(),
+            ReceiverState::Open { sub, .. } => {
+                if sub.triggered() {
+                    self.state = ReceiverState::Closed;
+                    true
+                } else {
+                    false
+                }
+            }
             ReceiverState::Closed => true,
         }
     }
