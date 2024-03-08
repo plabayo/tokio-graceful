@@ -62,7 +62,7 @@ impl ShutdownGuard {
     ///
     /// Use [`ShutdownGuard::cancelled`] to wait for the cancellation (shutdown) to be requested.
     #[inline]
-    pub fn cancelled_peek(&self) -> bool {
+    pub fn cancelled_peek(&mut self) -> bool {
         self.0.cancelled_peek()
     }
 
@@ -207,7 +207,7 @@ impl WeakShutdownGuard {
     ///
     /// Use [`WeakShutdownGuard::cancelled`] to wait for the cancellation (shutdown) to be requested.
     #[inline]
-    pub fn cancelled_peek(&self) -> bool {
+    pub fn cancelled_peek(&mut self) -> bool {
         self.trigger_rx.closed()
     }
 

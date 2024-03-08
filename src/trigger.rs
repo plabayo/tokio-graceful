@@ -48,6 +48,10 @@ enum SubscriberState {
 }
 
 impl Subscriber {
+    pub(crate) fn triggered(&self) -> bool {
+        self.state.load(Ordering::SeqCst)
+    }
+
     /// Returns the state of the Subscriber,
     /// which is used as a main driver in the Receiver's `Future::poll` implementation.
     ///
@@ -148,8 +152,11 @@ impl Receiver {
         }
     }
 
-    pub(crate) fn closed(&self) -> bool {
-        matches!(self.state, ReceiverState::Closed)
+    pub(crate) fn closed(&mut self) -> bool {
+        match &self.state {
+            ReceiverState::Open { sub, .. } => sub.triggered(),
+            ReceiverState::Closed => true,
+        }
     }
 }
 
