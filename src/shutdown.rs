@@ -361,10 +361,21 @@ impl Shutdown {
     ///
     /// [`ShutdownGuard`]: crate::ShutdownGuard
     /// [`Duration`]: std::time::Duration
-    pub async fn shutdown(self) -> time::Duration {
+    pub async fn shutdown(mut self) -> time::Duration {
         tracing::trace!("::shutdown: waiting for signal to trigger (read: to be cancelled)");
-        self.guard.downgrade().cancelled().await;
-        tracing::trace!("::shutdown: waiting for all guards to drop");
+        let weak_guard = self.guard.downgrade();
+        let start: time::Instant = time::Instant::now();
+        tokio::select! {
+            _ = weak_guard.cancelled() => {
+                tracing::trace!("::shutdown: waiting for all guards to drop");
+            }
+            _ = &mut self.zero_overwrite_rx => {
+                let elapsed = start.elapsed();
+                tracing::warn!("::shutdown: enforced: overwrite delayed cancellation after {}s", elapsed.as_secs_f64());
+                return elapsed;
+            }
+        };
+
         let start: time::Instant = time::Instant::now();
         tokio::select! {
             _ = self.zero_rx => {
@@ -397,15 +408,26 @@ impl Shutdown {
     /// [`ShutdownGuard`]: crate::ShutdownGuard
     /// [`Duration`]: std::time::Duration
     pub async fn shutdown_with_limit(
-        self,
+        mut self,
         limit: time::Duration,
     ) -> Result<time::Duration, TimeoutError> {
         tracing::trace!("::shutdown: waiting for signal to trigger (read: to be cancelled)");
-        self.guard.downgrade().cancelled().await;
-        tracing::trace!(
-            "::shutdown: waiting for all guards to drop for a max of {}s",
-            limit.as_secs_f64()
-        );
+        let weak_guard = self.guard.downgrade();
+        let start: time::Instant = time::Instant::now();
+        tokio::select! {
+            _ = weak_guard.cancelled() => {
+                tracing::trace!(
+                    "::shutdown: waiting for all guards to drop for a max of {}s",
+                    limit.as_secs_f64()
+                );
+            }
+            _ = &mut self.zero_overwrite_rx => {
+                let elapsed = start.elapsed();
+                tracing::trace!("::shutdown: enforced: overwrite delayed cancellation after {}s", elapsed.as_secs_f64());
+                return Err(TimeoutError(elapsed));
+            }
+        };
+
         let start: time::Instant = time::Instant::now();
         tokio::select! {
             _ = tokio::time::sleep(limit) => {

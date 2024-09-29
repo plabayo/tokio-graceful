@@ -125,18 +125,20 @@ async fn serve_tcp(shutdown_guard: tokio_graceful::ShutdownGuard) {
                 .serve_connection(stream, service_fn(hello));
             let mut conn = std::pin::pin!(conn);
 
-            loop {
-                tokio::select! {
-                    _ = guard.cancelled() => {
-                        conn.as_mut().graceful_shutdown();
-                    }
-                    result = conn.as_mut() => {
-                        if let Err(err) = result {
-                            tracing::error!(error = &err as &dyn std::error::Error, "conn exited with error");
-                        }
-                        break;
-                    }
+            tokio::select! {
+                _ = guard.cancelled() => {
+                    tracing::info!("signal received: initiate graceful shutdown");
+                    conn.as_mut().graceful_shutdown();
                 }
+                result = conn.as_mut() => {
+                    if let Err(err) = result {
+                        tracing::error!(error = &err as &dyn std::error::Error, "conn exited with error");
+                    }
+                    return;
+                }
+            }
+            if let Err(err) = conn.as_mut().await  {
+                tracing::error!(error = &err as &dyn std::error::Error, "conn exited with error after graceful shutdown");
             }
         });
     }

@@ -31,6 +31,7 @@ async fn main() {
         .init();
 
     let shutdown = tokio_graceful::Shutdown::builder()
+        .with_delay(Duration::from_secs(2))
         .with_overwrite_fn(tokio::signal::ctrl_c)
         .build();
 
@@ -65,7 +66,7 @@ async fn serve_tcp(shutdown_guard: tokio_graceful::ShutdownGuard) {
     loop {
         let stream = tokio::select! {
             _ = shutdown_guard.cancelled() => {
-                tracing::info!("signal received: initiate graceful shutdown");
+                tracing::info!("signal received: exit serve tcp accept loopt");
                 break;
             }
             result = listener.accept() => {
@@ -87,21 +88,24 @@ async fn serve_tcp(shutdown_guard: tokio_graceful::ShutdownGuard) {
                 .serve_connection(stream, service_fn(hello));
             let mut conn = std::pin::pin!(conn);
 
-            loop {
-                tokio::select! {
-                    _ = guard.cancelled() => {
-                        conn.as_mut().graceful_shutdown();
-                    }
-                    result = conn.as_mut() => {
-                        if let Err(err) = result {
-                            tracing::error!(error = &err as &dyn std::error::Error, "conn exited with error");
-                        }
-                        break;
-                    }
+            tokio::select! {
+                _ = guard.cancelled() => {
+                    tracing::info!("signal received: initiate graceful shutdown");
+                    conn.as_mut().graceful_shutdown();
                 }
+                result = conn.as_mut() => {
+                    if let Err(err) = result {
+                        tracing::error!(error = &err as &dyn std::error::Error, "conn exited with error");
+                    }
+                    return;
+                }
+            }
+            if let Err(err) = conn.as_mut().await  {
+                tracing::error!(error = &err as &dyn std::error::Error, "conn exited with error after graceful shutdown");
             }
         });
     }
+    tracing::info!("serve tcp fn exit");
 }
 
 async fn hello(_: Request<Incoming>) -> Result<Response<Full<Bytes>>, Infallible> {

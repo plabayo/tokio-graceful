@@ -133,6 +133,14 @@ to big power tools or providing more than is needed.
 The example runs a tcp 'echo' server which you can best play with using
 telnet: `telnet 127.0.0.1 8080`. As you are in control of when to exit you can easily let it timeout if you wish.
 
+> [examples/tokio_tcp_with_overwrite_fn.rs](https://github.com/plabayo/tokio-graceful/tree/main/examples/tokio_tcp_with_overwrite_fn.rs)
+>
+> ```bash
+> RUST_LOG=trace cargo run --example tokio_tcp_with_overwrite_fn
+> ```
+
+Same as `tokio_tcp` but with an overwrite fn added.
+
 > [examples/hyper.rs](https://github.com/plabayo/tokio-graceful/tree/main/examples/hyper.rs)
 >
 > ```bash
