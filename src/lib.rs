@@ -136,6 +136,95 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_shutdown_after_delay() {
+        let (tx, rx) = oneshot::channel::<()>();
+        let shutdown = Shutdown::builder()
+            .with_delay(Duration::from_micros(500))
+            .with_signal(async {
+                rx.await.unwrap();
+            })
+            .build();
+        tx.send(()).unwrap();
+        shutdown.shutdown().await;
+    }
+
+    #[tokio::test]
+    async fn test_shutdown_force() {
+        let (tx, rx) = oneshot::channel::<()>();
+        let (overwrite_tx, overwrite_rx) = oneshot::channel::<()>();
+        let shutdown = Shutdown::builder()
+            .with_signal(rx)
+            .with_overwrite_fn(|| overwrite_rx)
+            .build();
+        let _guard = shutdown.guard();
+        tx.send(()).unwrap();
+        overwrite_tx.send(()).unwrap();
+        shutdown.shutdown().await;
+    }
+
+    #[tokio::test]
+    async fn test_shutdown_with_limit_force() {
+        let (tx, rx) = oneshot::channel::<()>();
+        let (overwrite_tx, overwrite_rx) = oneshot::channel::<()>();
+        let shutdown = Shutdown::builder()
+            .with_signal(rx)
+            .with_overwrite_fn(|| overwrite_rx)
+            .build();
+        let _guard = shutdown.guard();
+        tx.send(()).unwrap();
+        overwrite_tx.send(()).unwrap();
+        assert!(shutdown
+            .shutdown_with_limit(Duration::from_secs(60))
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn test_shutdown_with_delay_force() {
+        let (tx, rx) = oneshot::channel::<()>();
+        let (overwrite_tx, overwrite_rx) = oneshot::channel::<()>();
+        let shutdown = Shutdown::builder()
+            .with_delay(Duration::from_micros(500))
+            .with_signal(rx)
+            .with_overwrite_fn(|| overwrite_rx)
+            .build();
+        let _guard = shutdown.guard();
+        tx.send(()).unwrap();
+        overwrite_tx.send(()).unwrap();
+        shutdown.shutdown().await;
+    }
+
+    #[tokio::test]
+    async fn test_shutdown_with_limit_and_delay_force() {
+        let (tx, rx) = oneshot::channel::<()>();
+        let (overwrite_tx, overwrite_rx) = oneshot::channel::<()>();
+        let shutdown = Shutdown::builder()
+            .with_delay(Duration::from_micros(500))
+            .with_signal(rx)
+            .with_overwrite_fn(|| overwrite_rx)
+            .build();
+        let _guard = shutdown.guard();
+        tx.send(()).unwrap();
+        overwrite_tx.send(()).unwrap();
+        assert!(shutdown
+            .shutdown_with_limit(Duration::from_secs(60))
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn test_shutdown_after_delay_check() {
+        let (tx, rx) = oneshot::channel::<()>();
+        let shutdown = Shutdown::builder()
+            .with_delay(Duration::from_secs(5))
+            .with_signal(rx)
+            .build();
+        tx.send(()).unwrap();
+        let result = tokio::time::timeout(Duration::from_micros(100), shutdown.shutdown()).await;
+        assert!(result.is_err(), "{result:?}");
+    }
+
+    #[tokio::test]
     async fn test_shutdown_nested_guards() {
         let (tx, rx) = oneshot::channel::<()>();
         let shutdown = Shutdown::new(async {

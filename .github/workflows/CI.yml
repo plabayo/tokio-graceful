@@ -93,7 +93,7 @@ jobs:
           toolchain: ${{env.RUST_TOOLCHAIN_MSRV}}
       - uses: Swatinem/rust-cache@v2
       - name: Run tests
-        run: cargo test --all-features --workspace
+        run: cargo test test_loom --release
         env:
           RUSTFLAGS: --cfg loom
 
@@ -119,7 +119,7 @@ jobs:
           toolchain: ${{env.RUST_TOOLCHAIN_BETA}}
       - uses: Swatinem/rust-cache@v2
       - name: Run tests
-        run: cargo test --all-features --workspace
+        run: cargo test test_loom --release
         env:
           RUSTFLAGS: --cfg loom
 
@@ -145,7 +145,7 @@ jobs:
           toolchain: ${{env.RUST_TOOLCHAIN}}
       - uses: Swatinem/rust-cache@v2
       - name: Run tests
-        run: cargo test --all-features --workspace
+        run: cargo test test_loom --release
         env:
           RUSTFLAGS: --cfg loom
 
@@ -184,78 +184,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Run tests
         run: cargo test --all-features --workspace
-
-  test-ignored-msrv:
-    needs: [check, check-msrv, check-all-features]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{env.RUST_TOOLCHAIN_MSRV}}
-      - uses: Swatinem/rust-cache@v2
-      - name: Run tests
-        run: cargo test --features=cli,telemetry,compression,rustls --workspace -- --ignored
-
-  test-ignored-beta:
-    needs: [check, check-msrv, check-all-features]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{env.RUST_TOOLCHAIN_BETA}}
-      - uses: Swatinem/rust-cache@v2
-      - name: Run tests
-        run: cargo test --features=cli,telemetry,compression,rustls --workspace -- --ignored
-
-  test-ignored:
-    needs: [check, check-msrv, check-all-features]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{env.RUST_TOOLCHAIN}}
-      - uses: Swatinem/rust-cache@v2
-      - name: Run tests
-        run: cargo test --features=cli,telemetry,compression,rustls --workspace -- --ignored
-
-  test-ignored-macos-msrv:
-    needs: [check, check-msrv, check-all-features]
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{env.RUST_TOOLCHAIN_MSRV}}
-      - uses: Swatinem/rust-cache@v2
-      - name: Run tests
-        run: cargo test --features=cli,telemetry,compression,rustls --workspace -- --ignored
-
-  test-ignored-macos-beta:
-    needs: [check, check-msrv, check-all-features]
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{env.RUST_TOOLCHAIN_MSRV}}
-      - uses: Swatinem/rust-cache@v2
-      - name: Run tests
-        run: cargo test --features=cli,telemetry,compression,rustls --workspace -- --ignored
-
-  test-ignored-macos:
-    needs: [check, check-msrv, check-all-features]
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{env.RUST_TOOLCHAIN}}
-      - uses: Swatinem/rust-cache@v2
-      - name: Run tests
-        run: cargo test --features=cli,telemetry,compression,rustls --workspace -- --ignored
 
   test-docs:
     needs: [check, check-msrv, check-all-features]

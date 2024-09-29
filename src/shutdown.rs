@@ -56,7 +56,7 @@ impl ShutdownBuilder<sealed::WithSignal<sealed::Default>> {
         ShutdownBuilder {
             data: sealed::WithSignal {
                 signal: future,
-                delay: None,
+                delay: self.data.delay,
             },
         }
     }
@@ -183,6 +183,10 @@ impl<I: sealed::IntoFuture> ShutdownBuilder<sealed::WithSignal<I>> {
         crate::sync::spawn(async move {
             let _ = trigger_signal.await;
             if let Some(delay) = delay {
+                tracing::trace!(
+                    "::trigger signal recieved: delay buffer activated: {:?}",
+                    delay
+                );
                 tokio::time::sleep(delay).await;
             }
             signal_tx.trigger();
@@ -225,6 +229,10 @@ where
                 zero_overwrite_tx.trigger();
             });
             if let Some(delay) = delay {
+                tracing::trace!(
+                    "::trigger signal recieved: delay buffer activated: {:?}",
+                    delay
+                );
                 tokio::time::sleep(delay).await;
             }
             signal_tx.trigger();
