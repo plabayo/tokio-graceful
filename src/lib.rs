@@ -12,7 +12,6 @@
     clippy::needless_borrow,
     clippy::match_wildcard_for_single_variants,
     clippy::if_let_mutex,
-    clippy::mismatched_target_os,
     clippy::await_holding_lock,
     clippy::match_on_vec_items,
     clippy::imprecise_flops,
@@ -42,7 +41,7 @@ pub use guard::{ShutdownGuard, WeakShutdownGuard};
 mod shutdown;
 #[cfg(not(loom))]
 pub use shutdown::default_signal;
-pub use shutdown::Shutdown;
+pub use shutdown::{Shutdown, ShutdownBuilder};
 
 pub(crate) mod sync;
 pub(crate) mod trigger;

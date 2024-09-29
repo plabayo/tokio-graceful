@@ -1,10 +1,242 @@
-use std::{future::Future, time};
-
 use crate::{
-    sync::{Arc, JoinHandle},
+    sync::JoinHandle,
     trigger::{trigger, Receiver},
     ShutdownGuard, WeakShutdownGuard,
 };
+use std::{
+    fmt,
+    future::Future,
+    time::{self, Duration},
+};
+
+/// [`ShutdownBuilder`] to build a [`Shutdown`] manager.
+pub struct ShutdownBuilder<T> {
+    data: T,
+}
+
+impl Default for ShutdownBuilder<sealed::WithSignal<sealed::Default>> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T: fmt::Debug> fmt::Debug for ShutdownBuilder<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ShutdownBuilder")
+            .field("data", &self.data)
+            .finish()
+    }
+}
+
+impl ShutdownBuilder<sealed::WithSignal<sealed::Default>> {
+    /// Create a new [`ShutdownBuilder`], which by default
+    /// is ready to build a [`Shutdown`].
+    pub fn new() -> Self {
+        Self {
+            data: sealed::WithSignal {
+                signal: sealed::Default,
+                delay: None,
+            },
+        }
+    }
+
+    /// Create a [`ShutdownBuilder`] without a trigger signal,
+    /// meaning it will act like a WaitGroup.
+    pub fn without_signal(self) -> ShutdownBuilder<sealed::WithoutSignal> {
+        ShutdownBuilder {
+            data: sealed::WithoutSignal,
+        }
+    }
+
+    /// Create a [`ShutdownBuilder`] with a custom [`Future`] signal.
+    pub fn with_signal<F: Future + Send + 'static>(
+        self,
+        future: F,
+    ) -> ShutdownBuilder<sealed::WithSignal<F>> {
+        ShutdownBuilder {
+            data: sealed::WithSignal {
+                signal: future,
+                delay: None,
+            },
+        }
+    }
+}
+
+impl<S> ShutdownBuilder<sealed::WithSignal<S>> {
+    /// Create a [`ShutdownBuilder`] with a function
+    /// which creates a future that will be awaited on
+    /// as an alternative to waiting for all jobs to be complete.
+    pub fn with_overwrite_fn<F, Fut>(
+        self,
+        f: F,
+    ) -> ShutdownBuilder<sealed::WithSignalAndOverwriteFn<S, F>>
+    where
+        F: FnOnce() -> Fut + Send + 'static,
+        Fut: Future + Send + 'static,
+    {
+        ShutdownBuilder {
+            data: sealed::WithSignalAndOverwriteFn {
+                signal: self.data.signal,
+                overwrite_fn: f,
+                delay: self.data.delay,
+            },
+        }
+    }
+
+    /// Attach a delay to this [`ShutdownBuilder`]
+    /// which will used as a timeout buffer between the shutdown
+    /// trigger signal and signalling the jobs to be cancelled.
+    pub fn with_delay(self, delay: Duration) -> Self {
+        Self {
+            data: sealed::WithSignal {
+                signal: self.data.signal,
+                delay: Some(delay),
+            },
+        }
+    }
+
+    /// Attach a delay to this [`ShutdownBuilder`]
+    /// which will used as a timeout buffer between the shutdown
+    /// trigger signal and signalling the jobs to be cancelled.
+    pub fn maybe_with_delay(self, delay: Option<Duration>) -> Self {
+        Self {
+            data: sealed::WithSignal {
+                signal: self.data.signal,
+                delay,
+            },
+        }
+    }
+
+    /// Attach a delay to this [`ShutdownBuilder`]
+    /// which will used as a timeout buffer between the shutdown
+    /// trigger signal and signalling the jobs to be cancelled.
+    pub fn set_delay(&mut self, delay: Duration) -> &mut Self {
+        self.data.delay = Some(delay);
+        self
+    }
+}
+
+impl<S, F> ShutdownBuilder<sealed::WithSignalAndOverwriteFn<S, F>> {
+    /// Attach a delay to this [`ShutdownBuilder`]
+    /// which will used as a timeout buffer between the shutdown
+    /// trigger signal and signalling the jobs to be cancelled.
+    pub fn with_delay(self, delay: Duration) -> Self {
+        Self {
+            data: sealed::WithSignalAndOverwriteFn {
+                signal: self.data.signal,
+                overwrite_fn: self.data.overwrite_fn,
+                delay: Some(delay),
+            },
+        }
+    }
+
+    /// Attach a delay to this [`ShutdownBuilder`]
+    /// which will used as a timeout buffer between the shutdown
+    /// trigger signal and signalling the jobs to be cancelled.
+    pub fn maybe_with_delay(self, delay: Option<Duration>) -> Self {
+        Self {
+            data: sealed::WithSignalAndOverwriteFn {
+                signal: self.data.signal,
+                overwrite_fn: self.data.overwrite_fn,
+                delay,
+            },
+        }
+    }
+
+    /// Attach a delay to this [`ShutdownBuilder`]
+    /// which will used as a timeout buffer between the shutdown
+    /// trigger signal and signalling the jobs to be cancelled.
+    pub fn set_delay(&mut self, delay: Duration) -> &mut Self {
+        self.data.delay = Some(delay);
+        self
+    }
+}
+
+impl ShutdownBuilder<sealed::WithoutSignal> {
+    /// Build a [`Shutdown`] that acts like a WaitGroup.
+    pub fn build(self) -> Shutdown {
+        let (zero_tx, zero_rx) = trigger();
+
+        let guard = ShutdownGuard::new(Receiver::pending(), zero_tx, Default::default());
+
+        Shutdown {
+            guard,
+            zero_rx,
+            zero_overwrite_rx: Receiver::pending(),
+        }
+    }
+}
+
+impl<I: sealed::IntoFuture> ShutdownBuilder<sealed::WithSignal<I>> {
+    /// Build a [`Shutdown`] which will allow a shutdown
+    /// when the shutdown signal has been triggered AND
+    /// all jobs are complete.
+    pub fn build(self) -> Shutdown {
+        let trigger_signal = self.data.signal.into_future();
+        let delay = self.data.delay;
+
+        let (signal_tx, signal_rx) = trigger();
+        let (zero_tx, zero_rx) = trigger();
+
+        let guard = ShutdownGuard::new(signal_rx, zero_tx, Default::default());
+
+        crate::sync::spawn(async move {
+            let _ = trigger_signal.await;
+            if let Some(delay) = delay {
+                tokio::time::sleep(delay).await;
+            }
+            signal_tx.trigger();
+        });
+
+        Shutdown {
+            guard,
+            zero_rx,
+            zero_overwrite_rx: Receiver::pending(),
+        }
+    }
+}
+
+impl<I, F, Fut> ShutdownBuilder<sealed::WithSignalAndOverwriteFn<I, F>>
+where
+    I: sealed::IntoFuture,
+    F: FnOnce() -> Fut + Send + 'static,
+    Fut: Future + Send + 'static,
+{
+    /// Build a [`Shutdown`] which will allow a shutdown
+    /// when the shutdown signal has been triggered AND
+    /// either all jobs are complete or the overwrite (force)
+    /// signal has been triggered instead.
+    pub fn build(self) -> Shutdown {
+        let trigger_signal = self.data.signal.into_future();
+        let overwrite_fn = self.data.overwrite_fn;
+        let delay = self.data.delay;
+
+        let (signal_tx, signal_rx) = trigger();
+        let (zero_tx, zero_rx) = trigger();
+        let (zero_overwrite_tx, zero_overwrite_rx) = trigger();
+
+        let guard = ShutdownGuard::new(signal_rx, zero_tx, Default::default());
+
+        crate::sync::spawn(async move {
+            let _ = trigger_signal.await;
+            let overwrite_signal = overwrite_fn();
+            crate::sync::spawn(async move {
+                let _ = overwrite_signal.await;
+                zero_overwrite_tx.trigger();
+            });
+            if let Some(delay) = delay {
+                tokio::time::sleep(delay).await;
+            }
+            signal_tx.trigger();
+        });
+
+        Shutdown {
+            guard,
+            zero_rx,
+            zero_overwrite_rx,
+        }
+    }
+}
 
 /// The [`Shutdown`] struct is the main entry point to the shutdown system.
 ///
@@ -22,26 +254,24 @@ use crate::{
 pub struct Shutdown {
     guard: ShutdownGuard,
     zero_rx: Receiver,
+    zero_overwrite_rx: Receiver,
 }
 
 impl Shutdown {
+    /// Create a [`ShutdownBuilder`] allowing you to add a delay,
+    /// a custom shutdown trigger signal and even an overwrite signal
+    /// to force a shutdown even if workers are still busy.
+    pub fn builder() -> ShutdownBuilder<sealed::WithSignal<sealed::Default>> {
+        ShutdownBuilder::default()
+    }
+
     /// Creates a new [`Shutdown`] struct with the given [`Future`].
     ///
     /// The [`Future`] will be awaited on when shutdown is requested.
     ///
     /// [`Future`]: std::future::Future
-    pub fn new(signal: impl Future<Output = ()> + Send + 'static) -> Self {
-        let (signal_tx, signal_rx) = trigger();
-        let (zero_tx, zero_rx) = trigger();
-
-        let guard = ShutdownGuard::new(signal_rx, zero_tx, Arc::new(0usize.into()));
-
-        crate::sync::spawn(async move {
-            signal.await;
-            signal_tx.trigger();
-        });
-
-        Self { guard, zero_rx }
+    pub fn new(signal: impl Future + Send + 'static) -> Self {
+        ShutdownBuilder::default().with_signal(signal).build()
     }
 
     /// Creates a new [`Shutdown`] struct with no signal.
@@ -50,7 +280,7 @@ impl Shutdown {
     /// like system where you wish to wait for all open tasks
     /// without requiring a signal to be triggered first.
     pub fn no_signal() -> Self {
-        Self::new(async {})
+        ShutdownBuilder::default().without_signal().build()
     }
 
     /// Returns a [`ShutdownGuard`] which primary use
@@ -128,10 +358,18 @@ impl Shutdown {
         self.guard.downgrade().cancelled().await;
         tracing::trace!("::shutdown: waiting for all guards to drop");
         let start: time::Instant = time::Instant::now();
-        self.zero_rx.await;
-        let elapsed = start.elapsed();
-        tracing::trace!("::shutdown: ready after {}s", elapsed.as_secs_f64());
-        elapsed
+        tokio::select! {
+            _ = self.zero_rx => {
+                let elapsed = start.elapsed();
+                tracing::trace!("::shutdown: ready after {}s", elapsed.as_secs_f64());
+                elapsed
+            }
+            _ = self.zero_overwrite_rx => {
+                let elapsed = start.elapsed();
+                tracing::warn!("::shutdown: enforced: overwrite signal triggered after {}s", elapsed.as_secs_f64());
+                elapsed
+            }
+        }
     }
 
     /// Returns a future that completes once the [`Shutdown`] has been triggered
@@ -170,6 +408,11 @@ impl Shutdown {
                 let elapsed = start.elapsed();
                 tracing::trace!("::shutdown: ready after {}s", elapsed.as_secs_f64());
                 Ok(elapsed)
+            }
+            _ = self.zero_overwrite_rx => {
+                let elapsed = start.elapsed();
+                tracing::trace!("::shutdown: enforced: overwrite signal triggered after {}s", elapsed.as_secs_f64());
+                Err(TimeoutError(elapsed))
             }
         }
     }
@@ -239,3 +482,69 @@ impl std::fmt::Display for TimeoutError {
 }
 
 impl std::error::Error for TimeoutError {}
+
+mod sealed {
+    use std::{fmt, future::Future, time::Duration};
+
+    pub trait IntoFuture: Send + 'static {
+        fn into_future(self) -> impl Future + Send + 'static;
+    }
+
+    impl<F> IntoFuture for F
+    where
+        F: Future + Send + 'static,
+    {
+        fn into_future(self) -> impl Future + Send + 'static {
+            self
+        }
+    }
+
+    #[derive(Debug)]
+    #[non_exhaustive]
+    pub struct Default;
+
+    impl IntoFuture for Default {
+        #[cfg(loom)]
+        fn into_future(self) -> impl Future + Send + 'static {
+            std::future::pending::<()>()
+        }
+        #[cfg(not(loom))]
+        fn into_future(self) -> impl Future + Send + 'static {
+            super::default_signal()
+        }
+    }
+
+    #[derive(Debug)]
+    #[non_exhaustive]
+    pub struct WithoutSignal;
+
+    pub struct WithSignal<S> {
+        pub(super) signal: S,
+        pub(super) delay: Option<Duration>,
+    }
+
+    impl<S: fmt::Debug> fmt::Debug for WithSignal<S> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_struct("WithSignal")
+                .field("signal", &self.signal)
+                .field("delay", &self.delay)
+                .finish()
+        }
+    }
+
+    pub struct WithSignalAndOverwriteFn<S, F> {
+        pub(super) signal: S,
+        pub(super) overwrite_fn: F,
+        pub(super) delay: Option<Duration>,
+    }
+
+    impl<S: fmt::Debug, F: fmt::Debug> fmt::Debug for WithSignalAndOverwriteFn<S, F> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_struct("WithSignalAndOverwriteFn")
+                .field("signal", &self.signal)
+                .field("overwrite_fn", &self.overwrite_fn)
+                .field("delay", &self.delay)
+                .finish()
+        }
+    }
+}
