@@ -30,50 +30,16 @@ async fn main() {
         .with(EnvFilter::from_default_env())
         .init();
 
-    // oneshot channel used to be able to trigger a shutdown
-    // in case of an unexpected task exit
-    let (task_exit_tx, task_exit_rx) = tokio::sync::oneshot::channel::<()>();
-
-    let shutdown = tokio_graceful::Shutdown::new(async move {
-        tokio::select! {
-            _ = task_exit_rx => {
-                tracing::warn!("critical task exit observed, shutting down");
-            }
-            _ = tokio_graceful::default_signal() => {
-                tracing::info!("external exit signal received, shutting down");
-            }
-        }
-    });
+    let shutdown = tokio_graceful::Shutdown::builder()
+        .with_delay(Duration::from_secs(2))
+        .with_overwrite_fn(tokio::signal::ctrl_c)
+        .build();
 
     // Short for `shutdown.guard().into_spawn_task_fn(serve_tcp)`
     // In case you only wish to pass in a future (in contrast to a function)
     // as you do not care about being able to use the linked guard,
     // you can also use [`Shutdown::spawn_task`](https://docs.rs/tokio-graceful/latest/tokio_graceful/struct.Shutdown.html#method.spawn_task).
-    let server_handle = shutdown.spawn_task_fn(serve_tcp);
-
-    // spawn a task that will trigger a shutdown in case of an error with our server,
-    // a common reason for this could be because you have an issue at server setup
-    // (e.g. port that you try to bind to is already in use)
-    let shutdown_err_guard = shutdown.guard_weak();
-    tokio::spawn(async move {
-        tokio::select! {
-            _ = shutdown_err_guard.cancelled() => {
-                // shutdown signal received, do nothing but exit this task
-                return;
-            }
-            result = server_handle => {
-                match result {
-                    Ok(_) => {
-                        tracing::info!("server exited, triggering manual shutdown");
-                    }
-                    Err(err) => {
-                        tracing::error!(error = &err as &dyn std::error::Error, "server exited, triggering error shutdown");
-                    }
-                }
-            }
-        }
-        task_exit_tx.send(()).unwrap();
-    });
+    shutdown.spawn_task_fn(serve_tcp);
 
     // use [`Shutdown::shutdown`](https://docs.rs/tokio-graceful/latest/tokio_graceful/struct.Shutdown.html#method.shutdown)
     // to wait for all guards to drop without any limit on how long to wait.
@@ -85,10 +51,7 @@ async fn main() {
             );
         }
         Err(e) => {
-            tracing::warn!(
-                error = &e as &dyn std::error::Error,
-                "shutdown: forcefully due to timeout"
-            );
+            tracing::warn!("shutdown: forcefully due to timeout: {}", e);
         }
     }
 
@@ -103,7 +66,7 @@ async fn serve_tcp(shutdown_guard: tokio_graceful::ShutdownGuard) {
     loop {
         let stream = tokio::select! {
             _ = shutdown_guard.cancelled() => {
-                tracing::info!("signal received: initiate graceful shutdown");
+                tracing::info!("signal received: exit serve tcp accept loopt");
                 break;
             }
             result = listener.accept() => {
@@ -142,6 +105,7 @@ async fn serve_tcp(shutdown_guard: tokio_graceful::ShutdownGuard) {
             }
         });
     }
+    tracing::info!("serve tcp fn exit");
 }
 
 async fn hello(_: Request<Incoming>) -> Result<Response<Full<Bytes>>, Infallible> {

@@ -96,6 +96,7 @@ impl Subscriber {
 enum ReceiverState {
     Open { sub: Subscriber, key: Option<usize> },
     Closed,
+    Pending,
 }
 
 impl Clone for ReceiverState {
@@ -110,6 +111,7 @@ impl Clone for ReceiverState {
                 key: None,
             },
             ReceiverState::Closed => ReceiverState::Closed,
+            ReceiverState::Pending => ReceiverState::Pending,
         }
     }
 }
@@ -147,6 +149,20 @@ impl Receiver {
             },
         }
     }
+
+    /// Create a always-closed [`Receiver`].
+    pub(crate) fn closed() -> Self {
+        Self {
+            state: ReceiverState::Closed,
+        }
+    }
+
+    /// Create a always-pending [`Receiver`].
+    pub(crate) fn pending() -> Self {
+        Self {
+            state: ReceiverState::Pending,
+        }
+    }
 }
 
 impl Future for Receiver {
@@ -173,6 +189,7 @@ impl Future for Receiver {
                 }
             }
             ReceiverState::Closed => std::task::Poll::Ready(()),
+            ReceiverState::Pending => std::task::Poll::Pending,
         }
     }
 }

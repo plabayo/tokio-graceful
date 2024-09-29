@@ -2,13 +2,14 @@
 categories = ["asynchronous", "network-programming"]
 edition = "2021"
 name = "tokio-graceful"
-version = "0.1.6"
+version = "0.2.0"
 description = "util for graceful shutdown of tokio applications"
 homepage = "https://github.com/plabayo/tokio-graceful"
 readme = "README.md"
 keywords = ["io", "async", "non-blocking", "futures"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/plabayo/tokio-graceful"
+rust-version = "1.75.0"
 
 [target.'cfg(loom)'.dependencies]
 loom = { version = "0.7", features = ["futures", "checkpoint"] }
@@ -29,3 +30,6 @@ hyper = { version = "1.0.1", features = [ "server", "http1", "http2" ] }
 hyper-util = { version = "0.1.1", features = [ "server", "server-auto", "http1", "http2", "tokio" ] }
 http-body-util = "0.1"
 bytes = "1"
+
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(loom)'] }

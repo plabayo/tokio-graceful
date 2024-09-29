@@ -2,6 +2,7 @@
 [![Docs.rs][docs-badge]][docs-url]
 [![MIT License][license-mit-badge]][license-mit-url]
 [![Apache 2.0 License][license-apache-badge]][license-apache-url]
+[![rust version][rust-version-badge]][rust-version-url]
 [![Build Status][actions-badge]][actions-url]
 
 [![Buy Me A Coffee][bmac-badge]][bmac-url]
@@ -15,6 +16,8 @@
 [license-mit-url]: https://github.com/plabayo/tokio-graceful/blob/main/LICENSE-MIT
 [license-apache-badge]: https://img.shields.io/badge/license-APACHE-blue.svg
 [license-apache-url]: https://github.com/plabayo/tokio-graceful/blob/main/LICENSE-APACHE
+[rust-version-badge]: https://img.shields.io/badge/rustc-1.75+-blue?style=flat-square&logo=rust
+[rust-version-url]: https://www.rust-lang.org
 [actions-badge]: https://github.com/plabayo/tokio-graceful/workflows/CI/badge.svg
 [actions-url]: https://github.com/plabayo/tokio-graceful/actions/workflows/CI.yml?query=branch%3Amain
 
@@ -54,7 +57,11 @@ async fn main() {
     // most users can just use `Shutdown::default()` to initiate
     // shutdown upon the default system signals.
     let signal = tokio::time::sleep(std::time::Duration::from_millis(100));
-    let shutdown = Shutdown::new(signal);
+    let shutdown = Shutdown::builder()
+        .with_delay(std::time::Duration::from_millis(50))
+        .with_signal(signal)
+        .with_overwrite_fn(tokio::signal::ctrl_c)
+        .build();
 
     // you can use shutdown to spawn tasks that will
     // include a guard to prevent the shutdown from completing
@@ -126,6 +133,14 @@ to big power tools or providing more than is needed.
 The example runs a tcp 'echo' server which you can best play with using
 telnet: `telnet 127.0.0.1 8080`. As you are in control of when to exit you can easily let it timeout if you wish.
 
+> [examples/tokio_tcp_with_overwrite_fn.rs](https://github.com/plabayo/tokio-graceful/tree/main/examples/tokio_tcp_with_overwrite_fn.rs)
+>
+> ```bash
+> RUST_LOG=trace cargo run --example tokio_tcp_with_overwrite_fn
+> ```
+
+Same as `tokio_tcp` but with an overwrite fn added.
+
 > [examples/hyper.rs](https://github.com/plabayo/tokio-graceful/tree/main/examples/hyper.rs)
 >
 > ```bash
@@ -138,6 +153,22 @@ the Tokio tcp example.
 
 This example only has one router server function which returns 'hello' (200 OK) after 5s.
 The delay is there to allow you to see the graceful shutdown in action.
+
+> [examples/hyper_with_overwrite_fn.rs](https://github.com/plabayo/tokio-graceful/tree/main/examples/hyper_with_overwrite_fn.rs)
+>
+> ```bash
+> RUST_LOG=trace cargo run --example hyper_with_overwrite_fn
+> ```
+
+Same as the `hyper` example but showcasing how you can add a overwrite signal fn.
+
+> [examples/hyper_with_shutdown_delay.rs](https://github.com/plabayo/tokio-graceful/tree/main/examples/hyper_with_shutdown_delay.rs)
+>
+> ```bash
+> RUST_LOG=trace cargo run --example hyper_with_shutdown_delay
+> ```
+
+Same as the `hyper` example but showcasing how you can add a delay buffer.
 
 > [examples/hyper_panic.rs](https://github.com/plabayo/tokio-graceful/tree/main/examples/hyper_panic.rs)
 >
@@ -218,17 +249,6 @@ and other open source libraries such as <https://github.com/plabayo/tower-async>
 
 Sponsors receive perks and depending on your regular contribution it also
 allows you to rely on us for support and consulting.
-
-### Contribute to Open Source
-
-Part of the money we receive from sponsors is used to contribute to other projects
-that we depend upon. Plabayo sponsors the following organisations and individuals
-building and maintaining open source software that `tokio-graceful` depends upon:
-
-| | name | projects |
-| - | - | - |
-| 💌 | [Tokio](https://github.com/tokio-rs) | (Tokio, Async Runtime)
-| 💌 | [Sean McArthur](https://github.com/seanmonstar) | (Tokio)
 
 ## FAQ
 
