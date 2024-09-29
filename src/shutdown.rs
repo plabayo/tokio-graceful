@@ -157,7 +157,7 @@ impl ShutdownBuilder<sealed::WithoutSignal> {
     pub fn build(self) -> Shutdown {
         let (zero_tx, zero_rx) = trigger();
 
-        let guard = ShutdownGuard::new(Receiver::pending(), zero_tx, Default::default());
+        let guard = ShutdownGuard::new(Receiver::closed(), zero_tx, Default::default());
 
         Shutdown {
             guard,

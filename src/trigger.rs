@@ -150,6 +150,13 @@ impl Receiver {
         }
     }
 
+    /// Create a always-closed [`Receiver`].
+    pub(crate) fn closed() -> Self {
+        Self {
+            state: ReceiverState::Closed,
+        }
+    }
+
     /// Create a always-pending [`Receiver`].
     pub(crate) fn pending() -> Self {
         Self {
