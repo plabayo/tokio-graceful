@@ -57,7 +57,11 @@ async fn main() {
     // most users can just use `Shutdown::default()` to initiate
     // shutdown upon the default system signals.
     let signal = tokio::time::sleep(std::time::Duration::from_millis(100));
-    let shutdown = Shutdown::new(signal);
+    let shutdown = Shutdown::builder()
+        .with_delay(std::time::Duration::from_millis(50))
+        .with_signal(signal)
+        .with_overwrite_fn(tokio::signal::ctrl_c)
+        .build();
 
     // you can use shutdown to spawn tasks that will
     // include a guard to prevent the shutdown from completing
@@ -142,6 +146,22 @@ the Tokio tcp example.
 This example only has one router server function which returns 'hello' (200 OK) after 5s.
 The delay is there to allow you to see the graceful shutdown in action.
 
+> [examples/hyper_with_overwrite_fn.rs](https://github.com/plabayo/tokio-graceful/tree/main/examples/hyper_with_overwrite_fn.rs)
+>
+> ```bash
+> RUST_LOG=trace cargo run --example hyper_with_overwrite_fn
+> ```
+
+Same as the `hyper` example but showcasing how you can add a overwrite signal fn.
+
+> [examples/hyper_with_shutdown_delay.rs](https://github.com/plabayo/tokio-graceful/tree/main/examples/hyper_with_shutdown_delay.rs)
+>
+> ```bash
+> RUST_LOG=trace cargo run --example hyper_with_shutdown_delay
+> ```
+
+Same as the `hyper` example but showcasing how you can add a delay buffer.
+
 > [examples/hyper_panic.rs](https://github.com/plabayo/tokio-graceful/tree/main/examples/hyper_panic.rs)
 >
 > ```bash
@@ -221,17 +241,6 @@ and other open source libraries such as <https://github.com/plabayo/tower-async>
 
 Sponsors receive perks and depending on your regular contribution it also
 allows you to rely on us for support and consulting.
-
-### Contribute to Open Source
-
-Part of the money we receive from sponsors is used to contribute to other projects
-that we depend upon. Plabayo sponsors the following organisations and individuals
-building and maintaining open source software that `tokio-graceful` depends upon:
-
-| | name | projects |
-| - | - | - |
-| 💌 | [Tokio](https://github.com/tokio-rs) | (Tokio, Async Runtime)
-| 💌 | [Sean McArthur](https://github.com/seanmonstar) | (Tokio)
 
 ## FAQ
 
