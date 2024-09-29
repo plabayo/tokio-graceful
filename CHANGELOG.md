@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# 0.2.0 (29. September, 2024)
+
+This is usability wise not a breaking release,
+however it does make changes to the API which might break subtle edge cases
+and it also increases the MSRV to 1.75.
+
+New Features:
+
+- add a delay (Duration) that can be used
+  to trigger the cancel notification to ongoing jobs once the shutdown trigger (signal)
+  has been received;
+- add a second signal factory that can be used to create an overwrite
+  signal to be created and triggered once the main signal has been triggered,
+  as an alternative to the jobs being complete or max delay has been reached.
+
+Both features can be configured using the newly introduced `ShutdownBuilder`,
+which can be made directly or via `Shutdown::builder`.
+
 # 0.1.6 (01. December, 2023)
 
 - Upgrade hyper examples to adapt to dev dependency hyper v1.0 (was hyper v0.14);
