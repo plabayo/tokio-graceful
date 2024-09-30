@@ -157,7 +157,7 @@ impl ShutdownBuilder<sealed::WithoutSignal> {
     pub fn build(self) -> Shutdown {
         let (zero_tx, zero_rx) = trigger();
 
-        let guard = ShutdownGuard::new(Receiver::closed(), zero_tx, Default::default());
+        let guard = ShutdownGuard::new(Receiver::closed(), None, zero_tx, Default::default());
 
         Shutdown {
             guard,
@@ -173,16 +173,29 @@ impl<I: sealed::IntoFuture> ShutdownBuilder<sealed::WithSignal<I>> {
     /// all jobs are complete.
     pub fn build(self) -> Shutdown {
         let trigger_signal = self.data.signal.into_future();
-        let delay = self.data.delay;
+
+        let (delay_tuple, maybe_shutdown_signal_rx) = match self.data.delay {
+            Some(delay) => {
+                let (shutdown_signal_tx, shutdown_signal_rx) = trigger();
+                (Some((delay, shutdown_signal_tx)), Some(shutdown_signal_rx))
+            }
+            None => (None, None),
+        };
 
         let (signal_tx, signal_rx) = trigger();
         let (zero_tx, zero_rx) = trigger();
 
-        let guard = ShutdownGuard::new(signal_rx, zero_tx, Default::default());
+        let guard = ShutdownGuard::new(
+            signal_rx,
+            maybe_shutdown_signal_rx,
+            zero_tx,
+            Default::default(),
+        );
 
         crate::sync::spawn(async move {
             let _ = trigger_signal.await;
-            if let Some(delay) = delay {
+            if let Some((delay, shutdown_signal_tx)) = delay_tuple {
+                shutdown_signal_tx.trigger();
                 tracing::trace!(
                     "::trigger signal recieved: delay buffer activated: {:?}",
                     delay
@@ -213,13 +226,25 @@ where
     pub fn build(self) -> Shutdown {
         let trigger_signal = self.data.signal.into_future();
         let overwrite_fn = self.data.overwrite_fn;
-        let delay = self.data.delay;
+
+        let (delay_tuple, maybe_shutdown_signal_rx) = match self.data.delay {
+            Some(delay) => {
+                let (shutdown_signal_tx, shutdown_signal_rx) = trigger();
+                (Some((delay, shutdown_signal_tx)), Some(shutdown_signal_rx))
+            }
+            None => (None, None),
+        };
 
         let (signal_tx, signal_rx) = trigger();
         let (zero_tx, zero_rx) = trigger();
         let (zero_overwrite_tx, zero_overwrite_rx) = trigger();
 
-        let guard = ShutdownGuard::new(signal_rx, zero_tx, Default::default());
+        let guard = ShutdownGuard::new(
+            signal_rx,
+            maybe_shutdown_signal_rx,
+            zero_tx,
+            Default::default(),
+        );
 
         crate::sync::spawn(async move {
             let _ = trigger_signal.await;
@@ -228,7 +253,8 @@ where
                 let _ = overwrite_signal.await;
                 zero_overwrite_tx.trigger();
             });
-            if let Some(delay) = delay {
+            if let Some((delay, shutdown_signal_tx)) = delay_tuple {
+                shutdown_signal_tx.trigger();
                 tracing::trace!(
                     "::trigger signal recieved: delay buffer activated: {:?}",
                     delay

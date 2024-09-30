@@ -26,20 +26,33 @@ pub struct ShutdownGuard(ManuallyDrop<WeakShutdownGuard>);
 #[derive(Debug, Clone)]
 pub struct WeakShutdownGuard {
     pub(crate) trigger_rx: Receiver,
+    pub(crate) shutdown_signal_trigger_rx: Option<Receiver>,
     pub(crate) zero_tx: Sender,
     pub(crate) ref_count: Arc<AtomicUsize>,
 }
 
 impl ShutdownGuard {
-    pub(crate) fn new(trigger_rx: Receiver, zero_tx: Sender, ref_count: Arc<AtomicUsize>) -> Self {
+    pub(crate) fn new(
+        trigger_rx: Receiver,
+        shutdown_signal_trigger_rx: Option<Receiver>,
+        zero_tx: Sender,
+        ref_count: Arc<AtomicUsize>,
+    ) -> Self {
         let value = ref_count.fetch_add(1, Ordering::SeqCst);
         tracing::trace!("new shutdown guard: ref_count+1: {}", value + 1);
         Self(ManuallyDrop::new(WeakShutdownGuard::new(
-            trigger_rx, zero_tx, ref_count,
+            trigger_rx,
+            shutdown_signal_trigger_rx,
+            zero_tx,
+            ref_count,
         )))
     }
 
-    /// Returns a Future that gets fulfilled when cancellation (shutdown) is requested.
+    /// Returns a Future that gets fulfilled when cancellation (shutdown) is requested
+    /// and the delay (if any) duration has been awaited.
+    ///
+    /// Use [`Self::shutdown_signal_triggered`] for tasks that do not
+    /// require this opt-in delay buffer duration.
     ///
     /// The future will complete immediately if the token is already cancelled when this method is called.
     ///
@@ -54,6 +67,29 @@ impl ShutdownGuard {
     #[inline]
     pub async fn cancelled(&self) {
         self.0.cancelled().await
+    }
+
+    /// Returns a Future that gets fulfilled when cancellation (shutdown) is requested.
+    ///
+    /// Use [`Self::cancelled`] if you want to make sure the future
+    /// only completes when the buffer delay has been awaited.
+    ///
+    /// In case no delay has been configured for the parent `Shutdown`,
+    /// this function will be equal in behaviour to [`Self::cancelled`].
+    ///
+    /// The future will complete immediately if the token is already cancelled when this method is called.
+    ///
+    /// # Cancel safety
+    ///
+    /// This method is cancel safe.
+    ///
+    /// # Panics
+    ///
+    /// This method panics if the iternal mutex
+    /// is poisoned while being used.
+    #[inline]
+    pub async fn shutdown_signal_triggered(&self) {
+        self.0.shutdown_signal_triggered().await
     }
 
     /// Returns a [`crate::sync::JoinHandle`] that can be awaited on
@@ -166,15 +202,26 @@ impl Drop for ShutdownGuard {
 }
 
 impl WeakShutdownGuard {
-    pub(crate) fn new(trigger_rx: Receiver, zero_tx: Sender, ref_count: Arc<AtomicUsize>) -> Self {
+    pub(crate) fn new(
+        trigger_rx: Receiver,
+        shutdown_signal_trigger_rx: Option<Receiver>,
+        zero_tx: Sender,
+        ref_count: Arc<AtomicUsize>,
+    ) -> Self {
         Self {
             trigger_rx,
+            shutdown_signal_trigger_rx,
             zero_tx,
             ref_count,
         }
     }
 
-    /// Returns a Future that gets fulfilled when cancellation (shutdown) is requested.
+    /// Returns a Future that gets fulfilled when cancellation (shutdown) is requested
+    /// and the delay (buffer) duration has been awaited on.
+    ///
+    /// Use [`Self::shutdown_signal_triggered`] in case you want to get
+    /// a future which is triggered immediately when the shutdown signal is received,
+    /// without waiting for the delay duration first.
     ///
     /// The future will complete immediately if the token is already cancelled when this method is called.
     ///
@@ -189,6 +236,34 @@ impl WeakShutdownGuard {
     #[inline]
     pub async fn cancelled(&self) {
         self.trigger_rx.clone().await;
+    }
+
+    /// Returns a Future that gets fulfilled when cancellation (shutdown) is requested
+    /// without awaiting the delay duration first, if one is set.
+    ///
+    /// In case no delay has been configured for the parent `Shutdown`,
+    /// this function will be equal in behaviour to [`Self::cancelled`].
+    ///
+    /// Use [`Self::cancelled`] in case you want to get
+    /// a future which is triggered when the shutdown signal is received
+    /// and thethe delay duration is awaited.
+    ///
+    /// The future will complete immediately if the token is already cancelled when this method is called.
+    ///
+    /// # Cancel safety
+    ///
+    /// This method is cancel safe.
+    ///
+    /// # Panics
+    ///
+    /// This method panics if the iternal mutex
+    /// is poisoned while being used.
+    #[inline]
+    pub async fn shutdown_signal_triggered(&self) {
+        self.shutdown_signal_trigger_rx
+            .clone()
+            .unwrap_or_else(|| self.trigger_rx.clone())
+            .await
     }
 
     /// Returns a Future that gets fulfilled when cancellation (shutdown) is requested.

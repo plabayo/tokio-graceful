@@ -225,6 +225,30 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_shutdown_cancelled_vs_shutdown_signal_triggered() {
+        let (tx, rx) = oneshot::channel::<()>();
+        let shutdown = Shutdown::builder()
+            .with_delay(Duration::from_secs(5))
+            .with_signal(rx)
+            .build();
+        tx.send(()).unwrap();
+
+        let weak_guard = shutdown.guard_weak();
+
+        // will fail because delay is still being awaited
+        let result = tokio::time::timeout(Duration::from_micros(100), weak_guard.cancelled()).await;
+        assert!(result.is_err(), "{result:?}");
+
+        // this will succeed however, as it does not await the delay
+        let result = tokio::time::timeout(
+            Duration::from_millis(100),
+            weak_guard.shutdown_signal_triggered(),
+        )
+        .await;
+        assert!(result.is_ok(), "{result:?}");
+    }
+
+    #[tokio::test]
     async fn test_shutdown_nested_guards() {
         let (tx, rx) = oneshot::channel::<()>();
         let shutdown = Shutdown::new(async {
