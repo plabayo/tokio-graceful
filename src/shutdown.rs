@@ -388,12 +388,12 @@ impl Shutdown {
     /// [`ShutdownGuard`]: crate::ShutdownGuard
     /// [`Duration`]: std::time::Duration
     pub async fn shutdown(mut self) -> time::Duration {
-        tracing::trace!("::shutdown: waiting for signal to trigger (read: to be cancelled)");
+        tracing::info!("::shutdown: waiting for signal to trigger (read: to be cancelled)");
         let weak_guard = self.guard.downgrade();
         let start: time::Instant = time::Instant::now();
         tokio::select! {
             _ = weak_guard.cancelled() => {
-                tracing::trace!("::shutdown: waiting for all guards to drop");
+                tracing::info!("::shutdown: waiting for all guards to drop");
             }
             _ = &mut self.zero_overwrite_rx => {
                 let elapsed = start.elapsed();
@@ -406,7 +406,7 @@ impl Shutdown {
         tokio::select! {
             _ = self.zero_rx => {
                 let elapsed = start.elapsed();
-                tracing::trace!("::shutdown: ready after {}s", elapsed.as_secs_f64());
+                tracing::info!("::shutdown: ready after {}s", elapsed.as_secs_f64());
                 elapsed
             }
             _ = self.zero_overwrite_rx => {
@@ -437,19 +437,19 @@ impl Shutdown {
         mut self,
         limit: time::Duration,
     ) -> Result<time::Duration, TimeoutError> {
-        tracing::trace!("::shutdown: waiting for signal to trigger (read: to be cancelled)");
+        tracing::info!("::shutdown: waiting for signal to trigger (read: to be cancelled)");
         let weak_guard = self.guard.downgrade();
         let start: time::Instant = time::Instant::now();
         tokio::select! {
             _ = weak_guard.cancelled() => {
-                tracing::trace!(
+                tracing::info!(
                     "::shutdown: waiting for all guards to drop for a max of {}s",
                     limit.as_secs_f64()
                 );
             }
             _ = &mut self.zero_overwrite_rx => {
                 let elapsed = start.elapsed();
-                tracing::trace!("::shutdown: enforced: overwrite delayed cancellation after {}s", elapsed.as_secs_f64());
+                tracing::warn!("::shutdown: enforced: overwrite delayed cancellation after {}s", elapsed.as_secs_f64());
                 return Err(TimeoutError(elapsed));
             }
         };
@@ -457,17 +457,17 @@ impl Shutdown {
         let start: time::Instant = time::Instant::now();
         tokio::select! {
             _ = tokio::time::sleep(limit) => {
-                tracing::trace!("::shutdown: timeout after {}s", limit.as_secs_f64());
+                tracing::info!("::shutdown: timeout after {}s", limit.as_secs_f64());
                 Err(TimeoutError(limit))
             }
             _ = self.zero_rx => {
                 let elapsed = start.elapsed();
-                tracing::trace!("::shutdown: ready after {}s", elapsed.as_secs_f64());
+                tracing::info!("::shutdown: ready after {}s", elapsed.as_secs_f64());
                 Ok(elapsed)
             }
             _ = self.zero_overwrite_rx => {
                 let elapsed = start.elapsed();
-                tracing::trace!("::shutdown: enforced: overwrite signal triggered after {}s", elapsed.as_secs_f64());
+                tracing::warn!("::shutdown: enforced: overwrite signal triggered after {}s", elapsed.as_secs_f64());
                 Err(TimeoutError(elapsed))
             }
         }

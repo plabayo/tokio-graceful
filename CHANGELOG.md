@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# 0.2.2 (30. September, 2024)
+
+Expose main trace events at Info level for increased visibility,
+log-directives can be used by dependencies
+to filter out tokio-graceful info events if not desired.
+
 # 0.2.1 (30. September, 2024)
 
 Expose a signal that can be awaited on without awaiting the configured
