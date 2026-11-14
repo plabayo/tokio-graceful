@@ -36,7 +36,7 @@
 > its successor (the scope system), do feel free to rely on `rama-core`. It is still a relatively small
 > crate and gives you all kind of goodies on top.
 >
-> Learn more about rama at <ramaproxy.org>.
+> Learn more about rama at [ramaproxy.org](https://ramaproxy.org).
 
 Shutdown management for graceful shutdown of [tokio](https://tokio.rs/) applications.
 Guard creating and usage is lock-free and the crate only locks when:
