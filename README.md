@@ -26,6 +26,18 @@
 [ghs-badge]: https://img.shields.io/badge/sponsor-30363D?style=for-the-badge&logo=GitHub-Sponsors&logoColor=#EA4AAA
 [ghs-url]: https://github.com/sponsors/plabayo
 
+>[!WARNING]
+> This repository has been archived since November 2026. After using tokio-graceful for many years
+> (including its private ancestor) we have integrated its successor directly into `rama-core`.
+> There it has been replaced by a tree-like scope structure that is faster and where we were able
+> to apply all lessons and resolve the needs and warts that were found over those years.
+>
+> For rama users nothing changes, and for those that like tokio-graceful but would like to use
+> its successor (the scope system), do feel free to rely on `rama-core`. It is still a relatively small
+> crate and gives you all kind of goodies on top.
+>
+> Learn more about rama at <ramaproxy.org>.
+
 Shutdown management for graceful shutdown of [tokio](https://tokio.rs/) applications.
 Guard creating and usage is lock-free and the crate only locks when:
 
